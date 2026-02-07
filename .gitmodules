@@ -1,0 +1,3 @@
+[submodule "tools/claude-sdlc-plugin"]
+	path = tools/claude-sdlc-plugin
+	url = https://github.com/45ck/claude-sdlc-plugin.git
