@@ -52,12 +52,12 @@ func Provider() *schema.Provider {
 			"discord_webhook":             resourceDiscordWebhook(),
 			"discord_stage_instance":      resourceDiscordStageInstance(),
 			"discord_member_verification": resourceDiscordMemberVerification(),
-			"discord_guild_settings":      resourceDiscordGuildSettings(),
-			"discord_ban":                 resourceDiscordBan(),
-			"discord_member_timeout":      resourceDiscordMemberTimeout(),
-			"discord_member_nickname":     resourceDiscordMemberNickname(),
-			"discord_api_resource":        resourceDiscordAPIResource(),
-			"discord_soundboard_sound":    resourceDiscordSoundboardSound(),
+			// discord_guild_settings is now served by the Framework provider via terraform-plugin-mux.
+			"discord_ban":              resourceDiscordBan(),
+			"discord_member_timeout":   resourceDiscordMemberTimeout(),
+			"discord_member_nickname":  resourceDiscordMemberNickname(),
+			"discord_api_resource":     resourceDiscordAPIResource(),
+			"discord_soundboard_sound": resourceDiscordSoundboardSound(),
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{

@@ -80,8 +80,9 @@ func (p *discordProvider) Configure(ctx context.Context, req provider.ConfigureR
 }
 
 func (p *discordProvider) Resources(_ context.Context) []func() resource.Resource {
-	// Framework provider currently migrates data sources first.
-	return nil
+	return []func() resource.Resource{
+		NewGuildSettingsResource,
+	}
 }
 
 func (p *discordProvider) DataSources(_ context.Context) []func() datasource.DataSource {
