@@ -1,6 +1,10 @@
 # Discord Server Resource
 
-A resource to create a server
+A resource to manage a Discord server (guild).
+
+Important: Discord bot tokens generally cannot create new guilds via the public API.
+In practice, you should create the server out-of-band and then `terraform import` it
+into state to manage it.
 
 ## Example Usage
 
@@ -19,13 +23,16 @@ resource discord_server my_server {
 * `explicit_content_filter` (Optional) Explicit Content Filter level
 * `default_message_notifications` (Optional) Default Message Notification settings (0 = all messages, 1 = mentions)
 * `afk_channel_id` (Optional) Channel ID for moving AFK users to
-* `af_timeout` (Optional)  many seconds before moving an AFK user
+* `afk_timeout` (Optional) How many seconds before moving an AFK user
 * `icon_url` (Optional) Remote URL for setting the icon of the server
 * `icon_data_uri` (Optional) Data URI of an image to set the icon
 * `splash_url` (Optional) Remote URL for setting the splash of the server
 * `splash_data_uri` (Optional) Data URI of an image to set the splash
 * `owner_id` (Optional) Owner ID of the server (Setting this will transfer ownership)
-* `system_channel_id` (Optional) Channel ID for system messages
+
+Note: system messages are managed via the separate `discord_system_channel` resource.
+For settings not covered by this schema, use `discord_guild_settings` or the generic
+`discord_api_resource` escape hatch.
 
 ## Attribute Reference
 

@@ -1,6 +1,9 @@
 # Discord Text Channel Resource
 
-A resource to create a text channel
+A resource to create a text channel.
+
+Note: this is a legacy per-type channel resource. Prefer `discord_channel` for full channel coverage
+(forum/media/stage/news, tags, etc.) and future feature support.
 
 ## Example Usage
 
@@ -14,8 +17,8 @@ resource discord_text_channel general {
 
 ## Argument Reference
 
-* `name` (Required) Name of the category
-* `server_id` (Required) ID of server this category is in
+* `name` (Required) Name of the channel
+* `server_id` (Required) ID of server this channel is in
 * `position` (Optional) Position of the channel, 0-indexed
 * `topic` (Optional) Topic of the channel
 * `nsfw` (Optional) Whether the channel is NSFW

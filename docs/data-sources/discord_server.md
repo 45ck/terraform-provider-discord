@@ -1,4 +1,4 @@
-# Discord Role Data Source
+# Discord Server Data Source
 
 Fetches a server's information.
 
@@ -33,4 +33,5 @@ One of these is required
 * `icon_hash` The hash of the server icon
 * `splash_hash` The hash of the server splash
 * `owner_id` The ID of the owner 
-* `system_channel_id` The system message channel ID
+
+Note: system channel configuration is exposed via the separate `discord_system_channel` data source/resource.

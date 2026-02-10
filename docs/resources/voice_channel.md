@@ -1,6 +1,9 @@
 # Discord Voice Channel Resource
 
-A resource to create a voice channel
+A resource to create a voice channel.
+
+Note: this is a legacy per-type channel resource. Prefer `discord_channel` for full channel coverage
+(stage/news, additional fields) and future feature support.
 
 ## Example Usage
 
@@ -14,9 +17,9 @@ resource discord_voice_channel general {
 
 ## Argument Reference
 
-* `name` (Required) Name of the category
-* `server_id` (Required) ID of server this category is in
+* `name` (Required) Name of the channel
+* `server_id` (Required) ID of server this channel is in
 * `position` (Optional) Position of the channel, 0-indexed
 * `bitrate` (Optional) Bitrate of the channel
-* `userlimit` (Optional) User Limit of the channel
+* `user_limit` (Optional) User Limit of the channel
 * `category` (Optional) ID of category to place this channel in
