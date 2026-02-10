@@ -17,7 +17,7 @@ func main() {
 	}
 
 	// Address can be any stable string; it is used for Terraform CLI dev overrides and debugging.
-	const address = "registry.terraform.io/45ck/discord"
+	const address = "registry.terraform.io/Chaotic-Logic/discord"
 	if err := tf6server.Serve(address, serverFunc); err != nil {
 		log.Fatalf("failed to serve provider: %v", err)
 	}
