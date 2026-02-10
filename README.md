@@ -4,6 +4,8 @@ This is a fork of [aequasi/terraform-provider-discord](https://github.com/aequas
 
 https://registry.terraform.io/providers/Chaotic-Logic/discord/latest
 
+Note: this fork serves the provider over Terraform plugin protocol v6 (via `terraform-plugin-mux` during migration), which requires Terraform CLI 1.0+.
+
 ## Building the provider
 ### Development
 ```sh
