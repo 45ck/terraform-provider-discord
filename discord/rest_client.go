@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -72,6 +73,10 @@ type RestClient struct {
 	Token     string
 	HTTP      *http.Client
 	UserAgent string
+
+	// globalRL gates requests when Discord responds with a global rate limit.
+	// Discord global limits apply across routes, so we must coordinate across concurrent requests.
+	globalRL *globalRateLimiter
 }
 
 func NewRestClient(token string, httpClient *http.Client) *RestClient {
@@ -80,11 +85,56 @@ func NewRestClient(token string, httpClient *http.Client) *RestClient {
 		Token:     token,
 		HTTP:      httpClient,
 		UserAgent: "terraform-provider-discord (45ck fork)",
+		globalRL:  &globalRateLimiter{},
 	}
 	if c.HTTP == nil {
 		c.HTTP = http.DefaultClient
 	}
 	return c
+}
+
+type globalRateLimiter struct {
+	mu    sync.Mutex
+	until time.Time
+}
+
+func (g *globalRateLimiter) wait(ctx context.Context) error {
+	for {
+		g.mu.Lock()
+		until := g.until
+		g.mu.Unlock()
+
+		if until.IsZero() || time.Now().After(until) {
+			return nil
+		}
+
+		d := time.Until(until)
+		t := time.NewTimer(d)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		case <-t.C:
+			// Loop in case another goroutine extends the window.
+			continue
+		}
+	}
+}
+
+func (g *globalRateLimiter) setCooldown(d time.Duration) {
+	// Add a small buffer to reduce flakiness on the boundary.
+	if d < 0 {
+		d = 0
+	}
+	d += 150 * time.Millisecond
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	until := time.Now().Add(d)
+	if until.After(g.until) {
+		g.until = until
+	}
 }
 
 func (c *RestClient) DoJSON(ctx context.Context, method, path string, query url.Values, in interface{}, out interface{}) error {
@@ -121,6 +171,13 @@ func (c *RestClient) doJSON(ctx context.Context, method, path string, query url.
 
 	// Retry loop for rate limits (429).
 	for attempt := 0; attempt < 10; attempt++ {
+		// Global limits apply across all routes; coordinate across concurrent requests.
+		if c.globalRL != nil {
+			if err := c.globalRL.wait(ctx); err != nil {
+				return err
+			}
+		}
+
 		var reqBody io.Reader
 		if bodyBytes != nil {
 			reqBody = bytes.NewReader(bodyBytes)
@@ -167,6 +224,14 @@ func (c *RestClient) doJSON(ctx context.Context, method, path string, query url.
 				}
 			}
 			sleep := time.Duration(rl.RetryAfter*1000.0) * time.Millisecond
+
+			// Discord can respond with a global limit; coordinate it.
+			if rl.Global || strings.EqualFold(res.Header.Get("X-RateLimit-Global"), "true") {
+				if c.globalRL != nil {
+					c.globalRL.setCooldown(sleep)
+				}
+			}
+
 			t := time.NewTimer(sleep)
 			select {
 			case <-ctx.Done():

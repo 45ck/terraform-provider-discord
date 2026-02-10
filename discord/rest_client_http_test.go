@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"sync/atomic"
 )
 
 func TestRestClient_DoJSONWithReason_SetsAuditLogReasonHeader(t *testing.T) {
@@ -69,6 +71,70 @@ func TestRestClient_DoJSON_RetriesOn429(t *testing.T) {
 	}
 	if calls < 2 {
 		t.Fatalf("expected at least 2 calls due to retry, got %d", calls)
+	}
+}
+
+func TestRestClient_DoJSON_GlobalRateLimitBlocksOtherRequests(t *testing.T) {
+	t.Parallel()
+
+	var first429 int32
+	served429 := make(chan struct{})
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// First request to /global returns a global 429 once.
+		if r.URL.Path == "/global" && atomic.CompareAndSwapInt32(&first429, 0, 1) {
+			w.Header().Set("X-RateLimit-Global", "true")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = io.WriteString(w, `{"message":"You are being rate limited.","retry_after":0.25,"global":true}`)
+			close(served429)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true})
+	}))
+	defer s.Close()
+
+	c := NewRestClient("TOKEN", s.Client())
+	c.BaseURL = s.URL
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		var out1 map[string]interface{}
+		errCh <- c.DoJSON(ctx, "GET", "/global", nil, nil, &out1)
+	}()
+
+	// Wait until the server has served the global 429; at that point the client should have set a cooldown.
+	select {
+	case <-served429:
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for 429 to be served: %v", ctx.Err())
+	}
+
+	// Wait until the client has observed the response and set a global cooldown window.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		c.globalRL.mu.Lock()
+		until := c.globalRL.until
+		c.globalRL.mu.Unlock()
+		if !until.IsZero() && time.Now().Before(until) {
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	start := time.Now()
+	var out2 map[string]interface{}
+	if err := c.DoJSON(ctx, "GET", "/other", nil, nil, &out2); err != nil {
+		t.Fatalf("DoJSON /other returned error: %v", err)
+	}
+	elapsed := time.Since(start)
+	if elapsed < 80*time.Millisecond {
+		t.Fatalf("expected /other to be delayed by global limiter, elapsed=%s", elapsed)
+	}
+
+	if err := <-errCh; err != nil {
+		t.Fatalf("DoJSON /global returned error: %v", err)
 	}
 }
 

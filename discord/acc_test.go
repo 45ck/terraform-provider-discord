@@ -1,3 +1,6 @@
+//go:build acctest
+// +build acctest
+
 package discord
 
 import (

@@ -51,3 +51,9 @@ func uint64ToIntIfFits(v uint64) (int, error) {
 	}
 	return int(v), nil
 }
+
+// Uint64ToIntIfFits converts v to int if it fits on the current platform.
+func Uint64ToIntIfFits(v uint64) (int, error) { return uint64ToIntIfFits(v) }
+
+// Uint64StringToPermissionBit parses a 64-bit integer string (decimal or 0x...) into a uint64.
+func Uint64StringToPermissionBit(s string) (uint64, error) { return uint64StringToPermissionBit(s) }

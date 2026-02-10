@@ -21,3 +21,9 @@ func normalizeJSON(raw string) (string, error) {
 	}
 	return string(b), nil
 }
+
+// NormalizeJSON parses a JSON string and re-encodes it into a normalized, stable representation.
+// This is useful for storing JSON bodies in Terraform state without formatting noise.
+func NormalizeJSON(raw string) (string, error) {
+	return normalizeJSON(raw)
+}

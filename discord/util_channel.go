@@ -57,3 +57,9 @@ func getDiscordChannelType(name string) (uint, bool) {
 
 	return 0, false
 }
+
+// GetTextChannelType exposes the channel type mapping used by this provider.
+func GetTextChannelType(channelType uint) (string, bool) { return getTextChannelType(channelType) }
+
+// GetDiscordChannelType exposes the channel type mapping used by this provider.
+func GetDiscordChannelType(name string) (uint, bool) { return getDiscordChannelType(name) }

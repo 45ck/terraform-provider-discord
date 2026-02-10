@@ -61,20 +61,7 @@ func Provider() *schema.Provider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"discord_permission":                dataSourceDiscordPermission(),
-			"discord_color":                     dataSourceDiscordColor(),
-			"discord_local_image":               dataSourceDiscordLocalImage(),
-			"discord_role":                      dataSourceDiscordRole(),
-			"discord_server":                    dataSourceDiscordServer(),
-			"discord_member":                    dataSourceDiscordMember(),
-			"discord_system_channel":            dataSourceDiscordSystemChannel(),
-			"discord_channel":                   dataSourceDiscordChannel(),
-			"discord_api_request":               dataSourceDiscordAPIRequest(),
-			"discord_thread_members":            dataSourceDiscordThreadMembers(),
-			"discord_emojis":                    dataSourceDiscordEmojis(),
-			"discord_stickers":                  dataSourceDiscordStickers(),
-			"discord_soundboard_sounds":         dataSourceDiscordSoundboardSounds(),
-			"discord_soundboard_default_sounds": dataSourceDiscordSoundboardDefaultSounds(),
+			// Data sources are served by the Framework-side provider via terraform-plugin-mux.
 		},
 
 		ConfigureContextFunc: providerConfigure,
