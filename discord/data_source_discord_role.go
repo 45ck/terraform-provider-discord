@@ -88,7 +88,8 @@ func dataSourceDiscordRoleRead(ctx context.Context, d *schema.ResourceData, m in
 	d.SetId(role.ID.String())
 	d.Set("role_id", role.ID.String())
 	d.Set("name", role.Name)
-	d.Set("position", len(server.Roles)-role.Position)
+	// Discord role positions are reverse-indexed with @everyone as 0; preserve API semantics.
+	d.Set("position", role.Position)
 	d.Set("color", role.Color)
 	d.Set("hoist", role.Hoist)
 	d.Set("mentionable", role.Mentionable)

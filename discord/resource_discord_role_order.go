@@ -93,17 +93,19 @@ func resourceDiscordRoleOrderRead(ctx context.Context, d *schema.ResourceData, m
 		serverID = d.Get("server_id").(string)
 	}
 
-	// The most reliable read is to GET the guild and inspect roles, but that is an extra schema.
-	// Use the existing disgord client for roles here for stability.
-	client := m.(*Context).Client
-	guild, err := client.GetGuild(ctx, getId(serverID))
-	if err != nil {
+	c := m.(*Context).Rest
+	var roles []restRole
+	if err := c.DoJSON(ctx, "GET", fmt.Sprintf("/guilds/%s/roles", serverID), nil, nil, &roles); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			d.SetId("")
+			return nil
+		}
 		return diag.FromErr(err)
 	}
 
 	index := map[string]int{}
-	for _, r := range guild.Roles {
-		index[r.ID.String()] = r.Position
+	for _, r := range roles {
+		index[r.ID] = r.Position
 	}
 
 	items := d.Get("role").([]interface{})

@@ -17,7 +17,8 @@ resource discord_channel_permissions perms {
   overwrite {
     type         = "role"
     overwrite_id = discord_role.moderator.id
-    allow        = data.discord_permission.moderator.allow_bits
+    # Prefer *_bits64 for future-proof permissions.
+    allow_bits64 = data.discord_permission.moderator.allow_bits64
   }
 }
 ```
@@ -28,6 +29,8 @@ resource discord_channel_permissions perms {
 * `overwrite` (Required) Set of overwrites:
   * `type` (Required) `role` or `user`
   * `overwrite_id` (Required) Role ID or user ID
-  * `allow` (Optional) Allow bitset
-  * `deny` (Optional) Deny bitset
+  * `allow` (Optional) Allow bitset (platform-sized integer; can overflow on 32-bit)
+  * `deny` (Optional) Deny bitset (platform-sized integer; can overflow on 32-bit)
+  * `allow_bits64` (Optional) Allow bitset as 64-bit integer string (decimal or `0x...`). Prefer this for newer high-bit permissions.
+  * `deny_bits64` (Optional) Deny bitset as 64-bit integer string (decimal or `0x...`). Prefer this for newer high-bit permissions.
 * `reason` (Optional) Audit log reason (not read back)
