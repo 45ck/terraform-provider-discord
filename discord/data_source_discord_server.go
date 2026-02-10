@@ -2,10 +2,25 @@ package discord
 
 import (
 	"context"
-	"github.com/andersfylling/disgord"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
+
+type restGuildDS struct {
+	ID                          string `json:"id"`
+	Name                        string `json:"name"`
+	Region                      string `json:"region"`
+	DefaultMessageNotifications int    `json:"default_message_notifications"`
+	VerificationLevel           int    `json:"verification_level"`
+	ExplicitContentFilter       int    `json:"explicit_content_filter"`
+	AfkTimeout                  int    `json:"afk_timeout"`
+	AfkChannelID                string `json:"afk_channel_id"`
+	OwnerID                     string `json:"owner_id"`
+	Icon                        string `json:"icon"`
+	Splash                      string `json:"splash"`
+	SystemChannelID             string `json:"system_channel_id"`
+}
 
 func dataSourceDiscordServer() *schema.Resource {
 	return &schema.Resource{
@@ -62,52 +77,39 @@ func dataSourceDiscordServer() *schema.Resource {
 }
 
 func dataSourceDiscordServerRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	var err error
-	var server *disgord.Guild
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	if v, ok := d.GetOk("server_id"); ok {
-		server, err = client.GetGuild(ctx, getId(v.(string)))
-		if err != nil {
-			return diag.Errorf("Failed to fetch server %s: %s", v.(string), err.Error())
-		}
-	}
-	if v, ok := d.GetOk("name"); ok {
-		guilds, err := client.GetGuilds(ctx, &disgord.GetCurrentUserGuildsParams{Limit: 1000})
-		if err != nil {
-			return diag.Errorf("Failed to fetch server %s: %s", v.(string), err.Error())
-		}
-
-		for _, s := range guilds {
-			if s.Name == v.(string) {
-				server = s
-				break
-			}
-		}
-
-		if server == nil {
-			return diag.Errorf("Failed to fetch server %s", v.(string))
-		}
+	if _, ok := d.GetOk("name"); ok {
+		// Provider tokens are bot tokens (Authorization: Bot ...). Discord does not provide a bot-safe API
+		// to enumerate guilds by name.
+		return diag.Errorf("discord_server data source does not support lookup by name for bot tokens; set server_id")
 	}
 
-	d.SetId(server.ID.String())
-	d.Set("server_id", server.ID.String())
-	d.Set("name", server.Name)
-	d.Set("region", server.Region)
-	d.Set("afk_timeout", server.AfkTimeout)
-	d.Set("icon_hash", server.Icon)
-	d.Set("splash_hash", server.Splash)
-	d.Set("default_message_notifications", int(server.DefaultMessageNotifications))
-	d.Set("verification_level", int(server.VerificationLevel))
-	d.Set("explicit_content_filter", int(server.ExplicitContentFilter))
-
-	if !server.AfkChannelID.IsZero() {
-		d.Set("afk_channel_id", server.AfkChannelID.String())
-	}
-	if !server.OwnerID.IsZero() {
-		d.Set("owner_id", server.OwnerID.String())
+	serverID := d.Get("server_id").(string)
+	if serverID == "" {
+		return diag.Errorf("either server_id or name must be set")
 	}
 
-	return diags
+	var guild restGuildDS
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID, nil, nil, &guild); err != nil {
+		return diag.FromErr(err)
+	}
+
+	d.SetId(guild.ID)
+	_ = d.Set("server_id", guild.ID)
+	_ = d.Set("name", guild.Name)
+	_ = d.Set("region", guild.Region)
+	_ = d.Set("afk_timeout", guild.AfkTimeout)
+	_ = d.Set("icon_hash", guild.Icon)
+	_ = d.Set("splash_hash", guild.Splash)
+	_ = d.Set("default_message_notifications", guild.DefaultMessageNotifications)
+	_ = d.Set("verification_level", guild.VerificationLevel)
+	_ = d.Set("explicit_content_filter", guild.ExplicitContentFilter)
+	if guild.AfkChannelID != "" {
+		_ = d.Set("afk_channel_id", guild.AfkChannelID)
+	}
+	if guild.OwnerID != "" {
+		_ = d.Set("owner_id", guild.OwnerID)
+	}
+	return nil
 }

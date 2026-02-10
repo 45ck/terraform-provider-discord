@@ -2,7 +2,7 @@ package discord
 
 import (
 	"context"
-	"github.com/andersfylling/disgord"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -24,23 +24,19 @@ func dataSourceDiscordSystemChannel() *schema.Resource {
 }
 
 func dataSourceDiscordSystemChannelRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	var err error
-	var server *disgord.Guild
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
 
-	serverId := d.Get("server_id").(string)
-	server, err = client.GetGuild(ctx, getId(serverId))
-	if err != nil {
-		return diag.Errorf("Failed to fetch server %s: %s", serverId, err.Error())
+	var guild restGuildDS
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID, nil, nil, &guild); err != nil {
+		return diag.FromErr(err)
 	}
 
-	d.SetId(server.ID.String())
-	if server.SystemChannelID.IsZero() {
-		d.Set("system_channel_id", "")
+	d.SetId(guild.ID)
+	if guild.SystemChannelID == "" {
+		_ = d.Set("system_channel_id", "")
 	} else {
-		d.Set("system_channel_id", server.SystemChannelID.String())
+		_ = d.Set("system_channel_id", guild.SystemChannelID)
 	}
-
-	return diags
+	return nil
 }

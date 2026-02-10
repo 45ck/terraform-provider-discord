@@ -19,8 +19,8 @@ output jakes_username_and_discrim {
 
 * `server_id` (Required) The server id to search for the user in
 * `user_id` (Optional) The user id to search for. Required if not searching by username/discriminator
-* `username` (Optional) The username to search for. Discriminator is required when using this
-* `discriminator` (Optional) The discriminator to search for. Username is required when using this
+* `username` (Optional) The username to search for. Discriminator is required when using this. Note: username-based lookup is not supported for bot tokens; use `user_id`.
+* `discriminator` (Optional) The discriminator to search for. Username is required when using this. Note: username-based lookup is not supported for bot tokens; use `user_id`.
 
 ## Attribute Reference
 

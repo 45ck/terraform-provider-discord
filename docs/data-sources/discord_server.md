@@ -19,7 +19,7 @@ output discord_api_region {
 One of these is required
 
 * `server_id` (Optional) The server id to search for
-* `name` (Optional) The server name to search for
+* `name` (Optional) The server name to search for (not supported for bot tokens; prefer `server_id`)
 
 ## Attribute Reference
 

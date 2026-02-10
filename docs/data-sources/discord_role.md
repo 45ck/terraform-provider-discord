@@ -30,7 +30,8 @@ output mods_color {
 * `id` The id of the role
 * `position` Position of the role. This is reverse-indexed. the `@everyone` role is 0
 * `color` The integer representation of the role's color
-* `permissions` The permission bits of the role
+* `permissions` The permission bits of the role (platform-sized integer; can overflow on 32-bit)
+* `permissions_bits64` Permissions as 64-bit integer string (decimal). Prefer this for newer high-bit permissions.
 * `hoist` Whether the role is hoisted
 * `mentionable` Whether the role is mentionable
 * `managed` Whether the role is managed

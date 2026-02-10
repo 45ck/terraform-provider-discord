@@ -1,12 +1,13 @@
 package discord
 
 import (
-	"github.com/andersfylling/disgord"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/net/context"
+	"context"
+	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceDiscordRoleEveryone() *schema.Resource {
@@ -23,7 +24,6 @@ func resourceDiscordRoleEveryone() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: resourceRoleEveryoneImport,
 		},
-
 		Schema: map[string]*schema.Schema{
 			"server_id": {
 				Type:     schema.TypeString,
@@ -34,7 +34,6 @@ func resourceDiscordRoleEveryone() *schema.Resource {
 				Type:     schema.TypeInt,
 				Optional: true,
 				Default:  0,
-				ForceNew: false,
 			},
 			"permissions_bits64": {
 				Type:        schema.TypeString,
@@ -47,42 +46,40 @@ func resourceDiscordRoleEveryone() *schema.Resource {
 }
 
 func resourceRoleEveryoneImport(ctx context.Context, data *schema.ResourceData, i interface{}) ([]*schema.ResourceData, error) {
+	// Import format is just the server/guild ID (the @everyone role has the same ID as the guild).
 	data.SetId(data.Id())
-	data.Set("server_id", getId(data.Id()).String())
-
+	_ = data.Set("server_id", data.Id())
 	return schema.ImportStatePassthroughContext(ctx, data, i)
 }
 
 func resourceRoleEveryoneRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	serverId := getId(d.Get("server_id").(string))
-	d.SetId(serverId.String())
+	serverID := d.Get("server_id").(string)
+	d.SetId(serverID)
 
-	server, err := client.GetGuild(ctx, serverId)
+	role, err := fetchRoleByID(ctx, c, serverID, serverID)
 	if err != nil {
-		return diag.Errorf("Failed to fetch server %s: %s", serverId.String(), err.Error())
+		return diag.FromErr(err)
 	}
 
-	role, err := server.Role(serverId)
-	if err != nil {
-		return diag.Errorf("Failed to fetch role %s: %s", d.Id(), err.Error())
+	_ = d.Set("permissions_bits64", strings.TrimSpace(role.Permissions))
+	if v, err := uint64StringToPermissionBit(role.Permissions); err == nil {
+		if i, err := uint64ToIntIfFits(v); err == nil {
+			_ = d.Set("permissions", i)
+		} else {
+			_ = d.Set("permissions", 0)
+		}
 	}
 
-	d.Set("permissions", role.Permissions)
-	_ = d.Set("permissions_bits64", strconv.FormatUint(uint64(role.Permissions), 10))
-
-	return diags
+	return nil
 }
 
 func resourceRoleEveryoneUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	serverId := getId(d.Get("server_id").(string))
-	d.SetId(serverId.String())
-	builder := client.UpdateGuildRole(ctx, serverId, serverId)
+	serverID := d.Get("server_id").(string)
+	d.SetId(serverID)
 
 	perms := uint64(d.Get("permissions").(int))
 	if s := strings.TrimSpace(d.Get("permissions_bits64").(string)); s != "" {
@@ -92,15 +89,15 @@ func resourceRoleEveryoneUpdate(ctx context.Context, d *schema.ResourceData, m i
 		}
 		perms = v
 	}
-	builder.SetPermissions(disgord.PermissionBit(perms))
 
-	role, err := builder.Execute()
-	if err != nil {
-		return diag.Errorf("Failed to update role %s: %s", d.Id(), err.Error())
+	body := restRoleUpdate{
+		Permissions: strconv.FormatUint(perms, 10),
 	}
 
-	d.Set("permissions", role.Permissions)
-	_ = d.Set("permissions_bits64", strconv.FormatUint(uint64(role.Permissions), 10))
+	var out restRoleFull
+	if err := c.DoJSON(ctx, "PATCH", fmt.Sprintf("/guilds/%s/roles/%s", serverID, serverID), nil, body, &out); err != nil {
+		return diag.FromErr(err)
+	}
 
-	return diags
+	return resourceRoleEveryoneRead(ctx, d, m)
 }

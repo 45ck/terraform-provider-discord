@@ -1,17 +1,30 @@
 package discord
 
 import (
-	"fmt"
-	"github.com/andersfylling/disgord"
+	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/net/context"
 )
+
+type restUserDS struct {
+	ID            string `json:"id"`
+	Username      string `json:"username"`
+	Discriminator string `json:"discriminator"`
+	Avatar        string `json:"avatar"`
+}
+
+type restMemberDS struct {
+	User         restUserDS `json:"user"`
+	Nick         string     `json:"nick"`
+	Roles        []string   `json:"roles"`
+	JoinedAt     string     `json:"joined_at"`
+	PremiumSince string     `json:"premium_since"`
+}
 
 func dataSourceDiscordMember() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceMemberRead,
-
 		Schema: map[string]*schema.Schema{
 			"server_id": {
 				Type:     schema.TypeString,
@@ -63,61 +76,58 @@ func dataSourceDiscordMember() *schema.Resource {
 	}
 }
 
+func clearMemberState(d *schema.ResourceData) {
+	_ = d.Set("joined_at", nil)
+	_ = d.Set("premium_since", nil)
+	_ = d.Set("roles", nil)
+	_ = d.Set("username", nil)
+	_ = d.Set("discriminator", nil)
+	_ = d.Set("avatar", nil)
+	_ = d.Set("nick", nil)
+}
+
 func dataSourceMemberRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	var member *disgord.Member
-	var memberErr error
-	client := m.(*Context).Client
-	serverId := getId(d.Get("server_id").(string))
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
 
-	if v, ok := d.GetOk("user_id"); ok {
-		member, memberErr = client.GetMember(ctx, serverId, getId(v.(string)))
+	if _, ok := d.GetOk("username"); ok {
+		// Name-based lookups require listing/searching guild members, which is not scalable and can require
+		// privileged intents/permissions. IDs are the stable identifier.
+		d.SetId("")
+		_ = d.Set("in_server", false)
+		clearMemberState(d)
+		return diag.Errorf("discord_member data source lookup by username/discriminator is not supported; use user_id")
 	}
 
-	if v, ok := d.GetOk("username"); ok {
-		username := v.(string)
-		discriminator := d.Get("discriminator").(string)
+	userID := d.Get("user_id").(string)
+	if userID == "" {
+		return diag.Errorf("either user_id or username must be set")
+	}
 
-		members, err := client.GetMembers(ctx, serverId, &disgord.GetMembersParams{Limit: 0})
-		if err != nil {
-			return diag.Errorf("Failed to fetch members for %s: %s", serverId.String(), err.Error())
+	var member restMemberDS
+	err := c.DoJSON(ctx, "GET", "/guilds/"+serverID+"/members/"+userID, nil, nil, &member)
+	if err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			d.SetId(userID)
+			_ = d.Set("in_server", false)
+			clearMemberState(d)
+			return nil
 		}
-
-		memberErr = fmt.Errorf("failed to find member by name#discriminator: %s#%s", username, discriminator)
-		for _, m := range members {
-			if m.User.Username == username && m.User.Discriminator.String() == discriminator {
-				member = m
-				memberErr = nil
-				break
-			}
-		}
+		return diag.FromErr(err)
 	}
 
-	d.Set("in_server", memberErr == nil)
-	if memberErr != nil {
-		d.Set("joined_at", nil)
-		d.Set("premium_since", nil)
-		d.Set("roles", nil)
-		d.Set("username", nil)
-		d.Set("discriminator", nil)
-		d.Set("avatar", nil)
-		d.Set("nick", nil)
-		return diags
+	d.SetId(member.User.ID)
+	_ = d.Set("in_server", true)
+	_ = d.Set("joined_at", member.JoinedAt)
+	if member.PremiumSince != "" {
+		_ = d.Set("premium_since", member.PremiumSince)
+	} else {
+		_ = d.Set("premium_since", nil)
 	}
-
-	roles := make([]string, 0, len(member.Roles))
-	for _, r := range member.Roles {
-		roles = append(roles, r.String())
-	}
-
-	d.SetId(member.User.ID.String())
-	d.Set("joined_at", member.JoinedAt.String())
-	d.Set("premium_since", member.PremiumSince.String())
-	d.Set("roles", roles)
-	d.Set("username", member.User.Username)
-	d.Set("discriminator", member.User.Discriminator)
-	d.Set("avatar", member.User.Avatar)
-	d.Set("nick", member.Nick)
-
-	return diags
+	_ = d.Set("roles", member.Roles)
+	_ = d.Set("username", member.User.Username)
+	_ = d.Set("discriminator", member.User.Discriminator)
+	_ = d.Set("avatar", member.User.Avatar)
+	_ = d.Set("nick", member.Nick)
+	return nil
 }

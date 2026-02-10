@@ -6,6 +6,9 @@ Important: Discord bot tokens generally cannot create new guilds via the public 
 In practice, you should create the server out-of-band and then `terraform import` it
 into state to manage it.
 
+Important: Destroying `discord_server` will **not** delete the guild. This is a safety
+measure to prevent accidental server deletion.
+
 ## Example Usage
 
 ```hcl-terraform

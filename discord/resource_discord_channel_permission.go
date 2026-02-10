@@ -1,26 +1,43 @@
 package discord
 
 import (
+	"context"
 	"fmt"
-	"github.com/andersfylling/disgord"
+	"strconv"
+	"strings"
+
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/net/context"
-	"strconv"
-	"strings"
 )
+
+type restPermOverwriteRead struct {
+	ID    string `json:"id"`
+	Type  int    `json:"type"` // 0=role, 1=member
+	Allow string `json:"allow"`
+	Deny  string `json:"deny"`
+}
+
+type restChannelPermsRead struct {
+	ID                   string                  `json:"id"`
+	PermissionOverwrites []restPermOverwriteRead `json:"permission_overwrites"`
+}
+
+type restPermOverwriteUpsert struct {
+	Allow string `json:"allow"`
+	Deny  string `json:"deny"`
+	Type  int    `json:"type"`
+}
 
 func resourceDiscordChannelPermission() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceChannelPermissionCreate,
+		CreateContext: resourceChannelPermissionUpsert,
 		ReadContext:   resourceChannelPermissionRead,
-		UpdateContext: resourceChannelPermissionUpdate,
+		UpdateContext: resourceChannelPermissionUpsert,
 		DeleteContext: resourceChannelPermissionDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-
 		Schema: map[string]*schema.Schema{
 			"channel_id": {
 				Type:     schema.TypeString,
@@ -33,11 +50,9 @@ func resourceDiscordChannelPermission() *schema.Resource {
 				Required: true,
 				ValidateDiagFunc: func(val interface{}, path cty.Path) (diags diag.Diagnostics) {
 					v := val.(string)
-
 					if v != "role" && v != "user" {
 						diags = append(diags, diag.Errorf("%s is not a valid type. Must be \"role\" or \"user\"", v)...)
 					}
-
 					return diags
 				},
 			},
@@ -74,15 +89,29 @@ func resourceDiscordChannelPermission() *schema.Resource {
 	}
 }
 
-func resourceChannelPermissionCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+func owTypeToIntLegacy(t string) (int, error) {
+	switch t {
+	case "role":
+		return 0, nil
+	case "user":
+		return 1, nil
+	default:
+		return 0, fmt.Errorf("invalid overwrite type %q (expected role or user)", t)
+	}
+}
 
-	channelId := getId(d.Get("channel_id").(string))
-	overwriteId := getId(d.Get("overwrite_id").(string))
+func resourceChannelPermissionUpsert(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	c := m.(*Context).Rest
+
+	channelID := d.Get("channel_id").(string)
+	overwriteID := d.Get("overwrite_id").(string)
+	typ, err := owTypeToIntLegacy(d.Get("type").(string))
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
 	allow := uint64(d.Get("allow").(int))
-	if s := d.Get("allow_bits64").(string); strings.TrimSpace(s) != "" {
+	if s := strings.TrimSpace(d.Get("allow_bits64").(string)); s != "" {
 		v, err := uint64StringToPermissionBit(s)
 		if err != nil {
 			return diag.Errorf("invalid allow_bits64: %s", err.Error())
@@ -90,7 +119,7 @@ func resourceChannelPermissionCreate(ctx context.Context, d *schema.ResourceData
 		allow = v
 	}
 	deny := uint64(d.Get("deny").(int))
-	if s := d.Get("deny_bits64").(string); strings.TrimSpace(s) != "" {
+	if s := strings.TrimSpace(d.Get("deny_bits64").(string)); s != "" {
 		v, err := uint64StringToPermissionBit(s)
 		if err != nil {
 			return diag.Errorf("invalid deny_bits64: %s", err.Error())
@@ -98,103 +127,84 @@ func resourceChannelPermissionCreate(ctx context.Context, d *schema.ResourceData
 		deny = v
 	}
 
-	err := client.UpdateChannelPermissions(ctx, channelId, overwriteId, &disgord.UpdateChannelPermissionsParams{
-		Allow: disgord.PermissionBit(allow),
-		Deny:  disgord.PermissionBit(deny),
-		Type:  d.Get("type").(string),
-	})
-
-	if err != nil {
-		return diag.Errorf("Failed to update channel permissions %s: %s", channelId.String(), err.Error())
+	body := restPermOverwriteUpsert{
+		Allow: strconv.FormatUint(allow, 10),
+		Deny:  strconv.FormatUint(deny, 10),
+		Type:  typ,
 	}
 
-	d.SetId(strconv.Itoa(Hashcode(fmt.Sprintf("%s:%s:%s", channelId, overwriteId, d.Get("type").(string)))))
+	if err := c.DoJSON(ctx, "PUT", fmt.Sprintf("/channels/%s/permissions/%s", channelID, overwriteID), nil, body, nil); err != nil {
+		return diag.FromErr(err)
+	}
 
-	return diags
+	d.SetId(strconv.Itoa(Hashcode(fmt.Sprintf("%s:%s:%s", channelID, overwriteID, d.Get("type").(string)))))
+	return resourceChannelPermissionRead(ctx, d, m)
 }
 
 func resourceChannelPermissionRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	channelId := getId(d.Get("channel_id").(string))
-	overwriteId := getId(d.Get("overwrite_id").(string))
-
-	channel, err := client.GetChannel(ctx, channelId)
+	channelID := d.Get("channel_id").(string)
+	overwriteID := d.Get("overwrite_id").(string)
+	typ, err := owTypeToIntLegacy(d.Get("type").(string))
 	if err != nil {
-		return diag.Errorf("Failed to find channel %s: %s", channelId.String(), err.Error())
+		return diag.FromErr(err)
 	}
 
-	for _, x := range channel.PermissionOverwrites {
-		if x.Type == d.Get("type").(string) && x.ID == overwriteId {
-			_ = d.Set("allow_bits64", strconv.FormatUint(uint64(x.Allow), 10))
-			_ = d.Set("deny_bits64", strconv.FormatUint(uint64(x.Deny), 10))
+	var ch restChannelPermsRead
+	if err := c.DoJSON(ctx, "GET", fmt.Sprintf("/channels/%s", channelID), nil, nil, &ch); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			d.SetId("")
+			return nil
+		}
+		return diag.FromErr(err)
+	}
 
-			if i, err := uint64ToIntIfFits(uint64(x.Allow)); err == nil {
-				_ = d.Set("allow", i)
-			} else {
-				_ = d.Set("allow", 0)
+	found := false
+	for _, x := range ch.PermissionOverwrites {
+		if x.Type == typ && x.ID == overwriteID {
+			found = true
+			_ = d.Set("allow_bits64", strings.TrimSpace(x.Allow))
+			_ = d.Set("deny_bits64", strings.TrimSpace(x.Deny))
+
+			if v, err := uint64StringToPermissionBit(x.Allow); err == nil {
+				if i, err := uint64ToIntIfFits(v); err == nil {
+					_ = d.Set("allow", i)
+				} else {
+					_ = d.Set("allow", 0)
+				}
 			}
-			if i, err := uint64ToIntIfFits(uint64(x.Deny)); err == nil {
-				_ = d.Set("deny", i)
-			} else {
-				_ = d.Set("deny", 0)
+			if v, err := uint64StringToPermissionBit(x.Deny); err == nil {
+				if i, err := uint64ToIntIfFits(v); err == nil {
+					_ = d.Set("deny", i)
+				} else {
+					_ = d.Set("deny", 0)
+				}
 			}
 			break
 		}
 	}
 
-	return diags
-}
-
-func resourceChannelPermissionUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
-
-	channelId := getId(d.Get("channel_id").(string))
-	overwriteId := getId(d.Get("overwrite_id").(string))
-
-	allow := uint64(d.Get("allow").(int))
-	if s := d.Get("allow_bits64").(string); strings.TrimSpace(s) != "" {
-		v, err := uint64StringToPermissionBit(s)
-		if err != nil {
-			return diag.Errorf("invalid allow_bits64: %s", err.Error())
-		}
-		allow = v
+	if !found {
+		// Treat as gone.
+		d.SetId("")
+		return nil
 	}
-	deny := uint64(d.Get("deny").(int))
-	if s := d.Get("deny_bits64").(string); strings.TrimSpace(s) != "" {
-		v, err := uint64StringToPermissionBit(s)
-		if err != nil {
-			return diag.Errorf("invalid deny_bits64: %s", err.Error())
-		}
-		deny = v
-	}
-
-	err := client.UpdateChannelPermissions(ctx, channelId, overwriteId, &disgord.UpdateChannelPermissionsParams{
-		Allow: disgord.PermissionBit(allow),
-		Deny:  disgord.PermissionBit(deny),
-		Type:  d.Get("type").(string),
-	})
-
-	if err != nil {
-		return diag.Errorf("Failed to update channel permissions %s: %s", channelId.String(), err.Error())
-	}
-
-	return diags
+	return nil
 }
 
 func resourceChannelPermissionDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	channelId := getId(d.Get("channel_id").(string))
-	overwriteId := getId(d.Get("overwrite_id").(string))
-	err := client.DeleteChannelPermission(ctx, channelId, overwriteId)
+	channelID := d.Get("channel_id").(string)
+	overwriteID := d.Get("overwrite_id").(string)
 
-	if err != nil {
-		return diag.Errorf("Failed to delete channel permissions %s: %s", channelId.String(), err.Error())
+	if err := c.DoJSON(ctx, "DELETE", fmt.Sprintf("/channels/%s/permissions/%s", channelID, overwriteID), nil, nil, nil); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			return nil
+		}
+		return diag.FromErr(err)
 	}
 
-	return diags
+	return nil
 }

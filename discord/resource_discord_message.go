@@ -1,13 +1,47 @@
 package discord
 
 import (
-	"github.com/andersfylling/disgord"
+	"context"
+	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/net/context"
-	"strings"
-	"time"
 )
+
+type restMessageAuthor struct {
+	ID string `json:"id"`
+}
+
+type restMessage struct {
+	ID              string            `json:"id"`
+	ChannelID       string            `json:"channel_id"`
+	Content         string            `json:"content"`
+	Tts             bool              `json:"tts"`
+	Pinned          bool              `json:"pinned"`
+	Type            int               `json:"type"`
+	Timestamp       string            `json:"timestamp"`
+	EditedTimestamp string            `json:"edited_timestamp"`
+	Author          restMessageAuthor `json:"author"`
+	Embeds          []restEmbed       `json:"embeds"`
+}
+
+type restChannelGuild struct {
+	ID      string `json:"id"`
+	GuildID string `json:"guild_id"`
+}
+
+type restMessageCreate struct {
+	Content string      `json:"content,omitempty"`
+	Tts     bool        `json:"tts,omitempty"`
+	Embeds  []restEmbed `json:"embeds,omitempty"`
+}
+
+type restMessageEdit struct {
+	Content *string     `json:"content,omitempty"`
+	Embeds  []restEmbed `json:"embeds,omitempty"`
+}
 
 func resourceDiscordMessage() *schema.Resource {
 	return &schema.Resource{
@@ -18,7 +52,6 @@ func resourceDiscordMessage() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-
 		Schema: map[string]*schema.Schema{
 			"channel_id": {
 				Type:     schema.TypeString,
@@ -60,178 +93,7 @@ func resourceDiscordMessage() *schema.Resource {
 				Optional:     true,
 				MaxItems:     1,
 				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"title": {
-							Type:     schema.TypeString,
-							Optional: true,
-						},
-						"description": {
-							Type:     schema.TypeString,
-							Optional: true,
-						},
-						"url": {
-							Type:     schema.TypeString,
-							Optional: true,
-						},
-						"timestamp": {
-							Type:     schema.TypeString,
-							Optional: true,
-						},
-						"color": {
-							Type:     schema.TypeInt,
-							Optional: true,
-						},
-						"footer": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"text": {
-										Type:     schema.TypeString,
-										Required: true,
-									},
-									"icon_url": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-								},
-							},
-						},
-						"image": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"url": {
-										Type:     schema.TypeString,
-										Required: true,
-									},
-									"proxy_url": {
-										Type:     schema.TypeString,
-										Computed: true,
-									},
-									"height": {
-										Type:     schema.TypeInt,
-										Optional: true,
-									},
-									"width": {
-										Type:     schema.TypeInt,
-										Optional: true,
-									},
-								},
-							},
-						},
-						"thumbnail": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"url": {
-										Type:     schema.TypeString,
-										Required: true,
-									},
-									"proxy_url": {
-										Type:     schema.TypeString,
-										Computed: true,
-									},
-									"height": {
-										Type:     schema.TypeInt,
-										Optional: true,
-									},
-									"width": {
-										Type:     schema.TypeInt,
-										Optional: true,
-									},
-								},
-							},
-						},
-						"video": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"url": {
-										Type:     schema.TypeString,
-										Required: true,
-									},
-									"height": {
-										Type:     schema.TypeInt,
-										Optional: true,
-									},
-									"width": {
-										Type:     schema.TypeInt,
-										Optional: true,
-									},
-								},
-							},
-						},
-						"provider": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"name": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-									"url": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-								},
-							},
-						},
-						"author": {
-							Type:     schema.TypeList,
-							Optional: true,
-							MaxItems: 1,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"name": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-									"url": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-									"icon_url": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-									"proxy_icon_url": {
-										Type:     schema.TypeString,
-										Computed: true,
-									},
-								},
-							},
-						},
-						"fields": {
-							Type:     schema.TypeList,
-							Optional: true,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"name": {
-										Type:     schema.TypeString,
-										Required: true,
-									},
-									"value": {
-										Type:     schema.TypeString,
-										Optional: true,
-									},
-									"inline": {
-										Type:     schema.TypeBool,
-										Optional: true,
-									},
-								},
-							},
-						},
-					},
+					Schema: embedSchema(),
 				},
 			},
 			"pinned": {
@@ -247,164 +109,167 @@ func resourceDiscordMessage() *schema.Resource {
 	}
 }
 
-func resourceMessageCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+func setMessageServerID(ctx context.Context, c *RestClient, d *schema.ResourceData, channelID string) {
+	var ch restChannelGuild
+	if err := c.DoJSON(ctx, "GET", "/channels/"+channelID, nil, nil, &ch); err != nil {
+		return
+	}
+	if ch.GuildID != "" {
+		_ = d.Set("server_id", ch.GuildID)
+	}
+}
 
-	channelId := getId(d.Get("channel_id").(string))
-	params := &disgord.CreateMessageParams{
+func resourceMessageCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	c := m.(*Context).Rest
+
+	channelID := d.Get("channel_id").(string)
+	body := restMessageCreate{
 		Content: d.Get("content").(string),
 		Tts:     d.Get("tts").(bool),
 	}
 
 	if v, ok := d.GetOk("embed"); ok {
-		embed, err := buildEmbed(v.([]interface{}))
+		e, err := buildEmbed(v.([]interface{}))
 		if err != nil {
-			return diag.Errorf("Failed to create message in %s: %s", channelId.String(), err.Error())
+			return diag.Errorf("failed to build embed: %s", err.Error())
 		}
-
-		params.Embed = embed
+		body.Embeds = []restEmbed{*e}
 	}
 
-	message, err := client.CreateMessage(ctx, channelId, params)
-	if err != nil {
-		return diag.Errorf("Failed to create message in %s: %s", channelId.String(), err.Error())
+	var msg restMessage
+	if err := c.DoJSON(ctx, "POST", "/channels/"+channelID+"/messages", nil, body, &msg); err != nil {
+		return diag.FromErr(err)
 	}
 
-	d.SetId(message.ID.String())
-	d.Set("type", int(message.Type))
-	d.Set("timestamp", message.Timestamp.Format(time.RFC3339))
-	d.Set("author", message.Author.ID.String())
-	if len(message.Embeds) > 0 {
-		d.Set("embed", unbuildEmbed(message.Embeds[0]))
+	d.SetId(msg.ID)
+	_ = d.Set("type", msg.Type)
+	_ = d.Set("timestamp", msg.Timestamp)
+	_ = d.Set("author", msg.Author.ID)
+	if len(msg.Embeds) > 0 {
+		_ = d.Set("embed", unbuildEmbed(&msg.Embeds[0]))
 	} else {
-		d.Set("embed", nil)
+		_ = d.Set("embed", nil)
 	}
-	if !message.GuildID.IsZero() {
-		d.Set("server_id", message.GuildID.String())
-	}
+	setMessageServerID(ctx, c, d, channelID)
 
 	if d.Get("pinned").(bool) {
-		err = client.PinMessage(ctx, message)
-		if err != nil {
-			diags = append(diags, diag.Errorf("Failed to pin message %s in %s: %s", message.ID.String(), channelId.String(), err.Error())...)
+		if err := c.DoJSON(ctx, "PUT", fmt.Sprintf("/channels/%s/pins/%s", channelID, msg.ID), url.Values{}, nil, nil); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
-	return diags
+	return nil
 }
 
 func resourceMessageRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	channelId := getId(d.Get("channel_id").(string))
-	messageId := getId(d.Id())
-	message, err := client.GetMessage(ctx, channelId, messageId)
-	if err != nil {
-		return diag.Errorf("Failed to fetch message %s in %s: %s", messageId.String(), channelId.String(), err.Error())
+	channelID := d.Get("channel_id").(string)
+	messageID := d.Id()
+
+	var msg restMessage
+	if err := c.DoJSON(ctx, "GET", fmt.Sprintf("/channels/%s/messages/%s", channelID, messageID), nil, nil, &msg); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			d.SetId("")
+			return nil
+		}
+		return diag.FromErr(err)
 	}
 
-	if !message.GuildID.IsZero() {
-		d.Set("server_id", message.GuildID.String())
-	}
-	d.Set("type", int(message.Type))
-	d.Set("tts", message.Tts)
-	d.Set("timestamp", message.Timestamp.Format(time.RFC3339))
-	d.Set("author", message.Author.ID.String())
-	d.Set("content", message.Content)
-	d.Set("pinned", message.Pinned)
+	setMessageServerID(ctx, c, d, channelID)
+	_ = d.Set("type", msg.Type)
+	_ = d.Set("tts", msg.Tts)
+	_ = d.Set("timestamp", msg.Timestamp)
+	_ = d.Set("author", msg.Author.ID)
+	_ = d.Set("content", msg.Content)
+	_ = d.Set("pinned", msg.Pinned)
 
-	if len(message.Embeds) > 0 {
-		d.Set("embed", unbuildEmbed(message.Embeds[0]))
+	if len(msg.Embeds) > 0 {
+		_ = d.Set("embed", unbuildEmbed(&msg.Embeds[0]))
 	} else {
-		d.Set("embed", nil)
+		_ = d.Set("embed", nil)
 	}
-	if message.EditedTimestamp.IsZero() {
-		d.Set("edited_timestamp", nil)
+	if msg.EditedTimestamp == "" {
+		_ = d.Set("edited_timestamp", nil)
 	} else {
-		d.Set("edited_timestamp", message.EditedTimestamp.Format(time.RFC3339))
+		_ = d.Set("edited_timestamp", msg.EditedTimestamp)
 	}
 
-	return diags
+	return nil
 }
 
 func resourceMessageUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	channelId := getId(d.Get("channel_id").(string))
-	messageId := getId(d.Id())
-	builder := client.UpdateMessage(ctx, channelId, messageId)
+	channelID := d.Get("channel_id").(string)
+	messageID := d.Id()
+
+	edit := restMessageEdit{}
 	anyEdit := false
 
 	if d.HasChange("content") {
-		builder.SetContent(d.Get("content").(string))
+		s := d.Get("content").(string)
+		edit.Content = &s
 		anyEdit = true
 	}
 	if d.HasChange("embed") {
-		var embed *disgord.Embed
 		_, n := d.GetChange("embed")
 		if len(n.([]interface{})) > 0 {
 			e, err := buildEmbed(n.([]interface{}))
 			if err != nil {
-				return diag.Errorf("Failed to edit message %s in %s: %s", messageId.String(), channelId.String(), err.Error())
+				return diag.Errorf("failed to build embed: %s", err.Error())
 			}
-
-			embed = e
+			edit.Embeds = []restEmbed{*e}
+		} else {
+			// Explicitly clear embeds.
+			edit.Embeds = []restEmbed{}
 		}
-
-		builder.SetEmbed(embed)
 		anyEdit = true
 	}
 
 	if anyEdit {
-		message, err := builder.Execute()
-		if err != nil {
-			return diag.Errorf("Failed to update message %s in %s: %s", channelId.String(), messageId.String(), err.Error())
+		var msg restMessage
+		if err := c.DoJSON(ctx, "PATCH", fmt.Sprintf("/channels/%s/messages/%s", channelID, messageID), nil, edit, &msg); err != nil {
+			return diag.FromErr(err)
 		}
-
-		if len(message.Embeds) > 0 {
-			d.Set("embed", unbuildEmbed(message.Embeds[0]))
+		if len(msg.Embeds) > 0 {
+			_ = d.Set("embed", unbuildEmbed(&msg.Embeds[0]))
 		} else {
-			d.Set("embed", nil)
+			_ = d.Set("embed", nil)
 		}
-
-		if message.EditedTimestamp.IsZero() {
-			d.Set("edited_timestamp", nil)
+		if msg.EditedTimestamp == "" {
+			_ = d.Set("edited_timestamp", nil)
 		} else {
-			d.Set("edited_timestamp", message.EditedTimestamp.Format(time.RFC3339))
+			_ = d.Set("edited_timestamp", msg.EditedTimestamp)
 		}
 	}
 
 	if d.HasChange("pinned") {
-		// Pin/unpin must be performed via dedicated endpoints.
-		pinned := d.Get("pinned").(bool)
-		msg := &disgord.Message{ID: messageId, ChannelID: channelId}
-		if pinned {
-			if err := client.PinMessage(ctx, msg); err != nil {
-				diags = append(diags, diag.Errorf("Failed to pin message %s in %s: %s", messageId.String(), channelId.String(), err.Error())...)
+		if d.Get("pinned").(bool) {
+			if err := c.DoJSON(ctx, "PUT", fmt.Sprintf("/channels/%s/pins/%s", channelID, messageID), nil, nil, nil); err != nil {
+				return diag.FromErr(err)
 			}
 		} else {
-			if err := client.UnpinMessage(ctx, msg); err != nil {
-				diags = append(diags, diag.Errorf("Failed to unpin message %s in %s: %s", messageId.String(), channelId.String(), err.Error())...)
+			if err := c.DoJSON(ctx, "DELETE", fmt.Sprintf("/channels/%s/pins/%s", channelID, messageID), nil, nil, nil); err != nil {
+				return diag.FromErr(err)
 			}
 		}
 	}
 
-	return diags
+	return resourceMessageRead(ctx, d, m)
 }
 
 func resourceMessageDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	channelId := getId(d.Get("channel_id").(string))
-	messageId := getId(d.Id())
-	err := client.DeleteMessage(ctx, channelId, messageId)
-	if err != nil {
-		return diag.Errorf("Failed to delete message %s in %s: %s", messageId.String(), channelId.String(), err.Error())
+	channelID := d.Get("channel_id").(string)
+	messageID := d.Id()
+
+	if err := c.DoJSON(ctx, "DELETE", fmt.Sprintf("/channels/%s/messages/%s", channelID, messageID), nil, nil, nil); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			return nil
+		}
+		return diag.FromErr(err)
 	}
-
-	return diags
+	return nil
 }

@@ -1,25 +1,52 @@
 package discord
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/net/context"
-	"strconv"
 )
 
-type RoleSchema struct {
-	RoleId  string `json:"role_id"`
+type roleSchema struct {
+	RoleID  string `json:"role_id"`
 	HasRole bool   `json:"has_role"`
 }
 
-func convertToRoleSchema(v interface{}) (*RoleSchema, error) {
-	var roleSchema *RoleSchema
-	j, _ := json.MarshalIndent(v, "", "    ")
-	err := json.Unmarshal(j, &roleSchema)
+type restMemberRoles struct {
+	Roles []string `json:"roles"`
+}
 
-	return roleSchema, err
+type restMemberForRoles struct {
+	Roles []string `json:"roles"`
+}
+
+func convertToRoleSchema(v interface{}) (*roleSchema, error) {
+	var out *roleSchema
+	j, _ := json.MarshalIndent(v, "", "    ")
+	err := json.Unmarshal(j, &out)
+	return out, err
+}
+
+func memberHasRole(roles []string, roleID string) bool {
+	for _, r := range roles {
+		if r == roleID {
+			return true
+		}
+	}
+	return false
+}
+
+func removeRoleID(roles []string, roleID string) []string {
+	out := make([]string, 0, len(roles))
+	for _, r := range roles {
+		if r != roleID {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 func resourceDiscordMemberRoles() *schema.Resource {
@@ -31,7 +58,6 @@ func resourceDiscordMemberRoles() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-
 		Schema: map[string]*schema.Schema{
 			"user_id": {
 				Type:     schema.TypeString,
@@ -63,150 +89,123 @@ func resourceDiscordMemberRoles() *schema.Resource {
 }
 
 func resourceMemberRolesCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
+	c := m.(*Context).Rest
 
-	client := m.(*Context).Client
+	serverID := d.Get("server_id").(string)
+	userID := d.Get("user_id").(string)
 
-	serverId := getId(d.Get("server_id").(string))
-	userId := getId(d.Get("user_id").(string))
-
-	_, err := client.GetMember(ctx, serverId, userId)
-	if err != nil {
-		return diag.Errorf("Could not get member %s in %s: %s", userId.String(), serverId.String(), err.Error())
+	// Validate member exists.
+	var member restMemberForRoles
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID+"/members/"+userID, nil, nil, &member); err != nil {
+		return diag.FromErr(err)
 	}
 
-	d.SetId(strconv.Itoa(Hashcode(fmt.Sprintf("%s:%s", serverId.String(), userId.String()))))
+	d.SetId(strconv.Itoa(Hashcode(fmt.Sprintf("%s:%s", serverID, userID))))
 
-	diags = append(diags, resourceMemberRolesRead(ctx, d, m)...)
+	diags := resourceMemberRolesRead(ctx, d, m)
 	diags = append(diags, resourceMemberRolesUpdate(ctx, d, m)...)
-
 	return diags
 }
 
 func resourceMemberRolesRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
-	serverId := getId(d.Get("server_id").(string))
-	userId := getId(d.Get("user_id").(string))
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
+	userID := d.Get("user_id").(string)
 
-	member, err := client.GetMember(ctx, serverId, userId)
-	if err != nil {
-		return diag.Errorf("Could not get member %s in %s: %s", userId.String(), serverId.String(), err.Error())
+	var member restMemberForRoles
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID+"/members/"+userID, nil, nil, &member); err != nil {
+		return diag.FromErr(err)
 	}
 
 	items := d.Get("role").(*schema.Set).List()
-	roles := make([]map[string]interface{}, 0, len(items))
+	out := make([]map[string]interface{}, 0, len(items))
 
 	for _, r := range items {
 		v, _ := convertToRoleSchema(r)
-		rid := getId(v.RoleId)
-		roles = append(roles, map[string]interface{}{
-			"role_id":  v.RoleId,
-			"has_role": hasRole(member, rid),
+		out = append(out, map[string]interface{}{
+			"role_id":  v.RoleID,
+			"has_role": memberHasRole(member.Roles, v.RoleID),
 		})
 	}
 
-	d.Set("role", roles)
-	return diags
+	_ = d.Set("role", out)
+	return nil
 }
 
 func resourceMemberRolesUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
+	userID := d.Get("user_id").(string)
 
-	serverId := getId(d.Get("server_id").(string))
-	userId := getId(d.Get("user_id").(string))
-
-	member, err := client.GetMember(ctx, serverId, userId)
-	if err != nil {
-		return diag.Errorf("Could not get member %s in %s: %s", userId.String(), serverId.String(), err.Error())
+	var member restMemberForRoles
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID+"/members/"+userID, nil, nil, &member); err != nil {
+		return diag.FromErr(err)
 	}
 
-	builder := client.UpdateGuildMember(ctx, serverId, userId)
-
-	old, new := d.GetChange("role")
+	old, newV := d.GetChange("role")
 	oldItems := old.(*schema.Set).List()
-	items := new.(*schema.Set).List()
+	items := newV.(*schema.Set).List()
 
 	roles := member.Roles
 
 	for _, r := range items {
 		v, _ := convertToRoleSchema(r)
-		hasRole := hasRole(member, getId(v.RoleId))
-		// if its supposed to have the role, and it does, continue
-		if hasRole && v.HasRole {
-			continue
+		has := memberHasRole(roles, v.RoleID)
+		if v.HasRole && !has {
+			roles = append(roles, v.RoleID)
 		}
-		// If its supposed to have the role, and it doesnt, add it
-		if v.HasRole && !hasRole {
-			roles = append(roles, getId(v.RoleId))
-		}
-		// If its not supposed to have the role, and it does, remove it
-		if !v.HasRole && hasRole {
-			roles = removeRoleById(roles, getId(v.RoleId))
+		if !v.HasRole && has {
+			roles = removeRoleID(roles, v.RoleID)
 		}
 	}
 
-	// If the change removed the role, and the user has it, remove it
 	for _, r := range oldItems {
 		v, _ := convertToRoleSchema(r)
 		if wasRemoved(items, v) && v.HasRole {
-			roles = removeRoleById(roles, getId(v.RoleId))
+			roles = removeRoleID(roles, v.RoleID)
 		}
 	}
 
-	builder.SetRoles(roles)
-
-	err = builder.Execute()
-	if err != nil {
-		return diag.Errorf("Failed to edit member %s: %s", userId.String(), err.Error())
+	if err := c.DoJSON(ctx, "PATCH", "/guilds/"+serverID+"/members/"+userID, nil, restMemberRoles{Roles: roles}, nil); err != nil {
+		return diag.FromErr(err)
 	}
 
-	return diags
+	return nil
 }
 
-func wasRemoved(items []interface{}, v *RoleSchema) bool {
+func wasRemoved(items []interface{}, v *roleSchema) bool {
 	for _, i := range items {
 		item, _ := convertToRoleSchema(i)
-		if item.RoleId == v.RoleId {
+		if item.RoleID == v.RoleID {
 			return false
 		}
 	}
-
 	return true
 }
 
 func resourceMemberRolesDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
-	serverId := getId(d.Get("server_id").(string))
-	userId := getId(d.Get("user_id").(string))
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
+	userID := d.Get("user_id").(string)
 
-	member, err := client.GetMember(ctx, serverId, userId)
-	if err != nil {
-		return diag.Errorf("Could not get member %s in %s: %s", userId.String(), serverId.String(), err.Error())
+	var member restMemberForRoles
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID+"/members/"+userID, nil, nil, &member); err != nil {
+		return diag.FromErr(err)
 	}
-
-	builder := client.UpdateGuildMember(ctx, serverId, userId)
 
 	items := d.Get("role").(*schema.Set).List()
 	roles := member.Roles
-
 	for _, r := range items {
 		v, _ := convertToRoleSchema(r)
-		hasRole := hasRole(member, getId(v.RoleId))
-		// if its supposed to have the role, and it does, remove it
-		if hasRole && v.HasRole {
-			roles = removeRoleById(roles, getId(v.RoleId))
+		has := memberHasRole(roles, v.RoleID)
+		if has && v.HasRole {
+			roles = removeRoleID(roles, v.RoleID)
 		}
 	}
 
-	builder.SetRoles(roles)
-
-	err = builder.Execute()
-	if err != nil {
-		return diag.Errorf("Failed to edit member %s: %s", userId.String(), err.Error())
+	if err := c.DoJSON(ctx, "PATCH", "/guilds/"+serverID+"/members/"+userID, nil, restMemberRoles{Roles: roles}, nil); err != nil {
+		return diag.FromErr(err)
 	}
 
-	return diags
+	return nil
 }

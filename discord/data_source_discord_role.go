@@ -2,10 +2,24 @@ package discord
 
 import (
 	"context"
-	"github.com/andersfylling/disgord"
+	"strconv"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
+
+type restRoleDS struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Color       int    `json:"color"`
+	Hoist       bool   `json:"hoist"`
+	Mentionable bool   `json:"mentionable"`
+	Managed     bool   `json:"managed"`
+	Position    int    `json:"position"`
+	// Discord returns permissions as a stringified 64-bit integer.
+	Permissions string `json:"permissions"`
+}
 
 func dataSourceDiscordRole() *schema.Resource {
 	return &schema.Resource{
@@ -34,8 +48,14 @@ func dataSourceDiscordRole() *schema.Resource {
 				Computed: true,
 			},
 			"permissions": {
-				Type:     schema.TypeInt,
-				Computed: true,
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: "Role permission bits (platform-sized integer; can overflow on 32-bit). Prefer permissions_bits64.",
+			},
+			"permissions_bits64": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Permissions as 64-bit integer string (decimal). Prefer this for newer high-bit permissions.",
 			},
 			"hoist": {
 				Type:     schema.TypeBool,
@@ -54,47 +74,68 @@ func dataSourceDiscordRole() *schema.Resource {
 }
 
 func dataSourceDiscordRoleRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	var err error
-	var role *disgord.Role
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
 
-	serverId := getId(d.Get("server_id").(string))
-	server, err := client.GetGuild(ctx, serverId)
-	if err != nil {
-		return diag.Errorf("Failed to fetch server %s: %s", serverId.String(), err.Error())
+	var roles []restRoleDS
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID+"/roles", nil, nil, &roles); err != nil {
+		return diag.FromErr(err)
 	}
 
+	var role *restRoleDS
 	if v, ok := d.GetOk("role_id"); ok {
-		role, err = server.Role(getId(v.(string)))
-		if err != nil {
-			return diag.Errorf("Failed to fetch role %s: %s", v.(string), err.Error())
+		id := v.(string)
+		for i := range roles {
+			if roles[i].ID == id {
+				role = &roles[i]
+				break
+			}
+		}
+		if role == nil {
+			return diag.Errorf("failed to fetch role %s in server %s", id, serverID)
 		}
 	}
 
 	if v, ok := d.GetOk("name"); ok {
-		roles, err := server.RoleByName(v.(string))
-		if err != nil {
-			return diag.Errorf("Failed to fetch role %s: %s", v.(string), err.Error())
+		name := v.(string)
+		for i := range roles {
+			if roles[i].Name == name {
+				role = &roles[i]
+				break
+			}
 		}
-
-		if len(roles) <= 0 {
-			return diag.Errorf("Failed to fetch role %s", v.(string))
+		if role == nil {
+			return diag.Errorf("failed to fetch role %q in server %s", name, serverID)
 		}
-
-		role = roles[0]
 	}
 
-	d.SetId(role.ID.String())
-	d.Set("role_id", role.ID.String())
-	d.Set("name", role.Name)
-	// Discord role positions are reverse-indexed with @everyone as 0; preserve API semantics.
-	d.Set("position", role.Position)
-	d.Set("color", role.Color)
-	d.Set("hoist", role.Hoist)
-	d.Set("mentionable", role.Mentionable)
-	d.Set("permissions", role.Permissions)
-	d.Set("managed", role.Managed)
+	if role == nil {
+		return diag.Errorf("either role_id or name must be set")
+	}
 
-	return diags
+	permsRaw := strings.TrimSpace(role.Permissions)
+	perms64, err := strconv.ParseUint(permsRaw, 10, 64)
+	if err != nil {
+		// Keep the data source usable even if Discord changes the response shape.
+		_ = d.Set("permissions_bits64", permsRaw)
+		_ = d.Set("permissions", 0)
+	} else {
+		_ = d.Set("permissions_bits64", strconv.FormatUint(perms64, 10))
+		if i, err := uint64ToIntIfFits(perms64); err == nil {
+			_ = d.Set("permissions", i)
+		} else {
+			_ = d.Set("permissions", 0)
+		}
+	}
+
+	d.SetId(role.ID)
+	_ = d.Set("role_id", role.ID)
+	_ = d.Set("name", role.Name)
+	// Discord role positions are reverse-indexed with @everyone as 0; preserve API semantics.
+	_ = d.Set("position", role.Position)
+	_ = d.Set("color", role.Color)
+	_ = d.Set("hoist", role.Hoist)
+	_ = d.Set("mentionable", role.Mentionable)
+	_ = d.Set("managed", role.Managed)
+	return nil
 }

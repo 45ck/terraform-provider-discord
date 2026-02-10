@@ -1,22 +1,22 @@
 package discord
 
 import (
-	"github.com/andersfylling/disgord"
+	"context"
+	"fmt"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/net/context"
 )
 
 func resourceDiscordSystemChannel() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceSystemChannelCreate,
+		CreateContext: resourceSystemChannelUpsert,
 		ReadContext:   resourceSystemChannelRead,
-		UpdateContext: resourceSystemChannelUpdate,
+		UpdateContext: resourceSystemChannelUpsert,
 		DeleteContext: resourceSystemChannelDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-
 		Schema: map[string]*schema.Schema{
 			"server_id": {
 				Type:     schema.TypeString,
@@ -27,108 +27,67 @@ func resourceDiscordSystemChannel() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
+			"reason": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool { return true },
+			},
 		},
 	}
 }
 
-func resourceSystemChannelCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+func resourceSystemChannelUpsert(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
+	systemID := d.Get("system_channel_id").(string)
+	reason := d.Get("reason").(string)
 
-	serverId := disgord.NewSnowflake(0)
-	if v, ok := d.GetOk("server_id"); ok {
-		serverId = disgord.ParseSnowflakeString(v.(string))
+	body := map[string]interface{}{
+		"system_channel_id": systemID,
+	}
+	if err := c.DoJSONWithReason(ctx, "PATCH", fmt.Sprintf("/guilds/%s", serverID), nil, body, nil, reason); err != nil {
+		return diag.FromErr(err)
 	}
 
-	server, err := client.GetGuild(ctx, serverId)
-	if err != nil {
-		return diag.Errorf("Failed to find server: %s", err.Error())
-	}
-
-	builder := client.UpdateGuild(ctx, server.ID)
-
-	if v, ok := d.GetOk("system_channel_id"); ok {
-		builder.SetSystemChannelID(disgord.ParseSnowflakeString(v.(string)))
-	} else {
-		return diag.Errorf("system_channel_id is required")
-	}
-
-	server, err = builder.Execute()
-	if err != nil {
-		return diag.Errorf("Failed to edit server: %s", err.Error())
-	}
-
-	d.SetId(d.Get("server_id").(string))
-
-	return diags
+	d.SetId(serverID)
+	return resourceSystemChannelRead(ctx, d, m)
 }
 
 func resourceSystemChannelRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
-
-	serverId := disgord.ParseSnowflakeString(d.Id())
-
-	server, err := client.GetGuild(ctx, serverId)
-	if err != nil {
-		return diag.Errorf("Error fetching server: %s", err.Error())
+	c := m.(*Context).Rest
+	serverID := d.Id()
+	if serverID == "" {
+		serverID = d.Get("server_id").(string)
 	}
 
-	d.Set("system_channel_id", server.SystemChannelID.String())
-
-	return diags
-}
-
-func resourceSystemChannelUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
-
-	serverId := disgord.ParseSnowflakeString(d.Get("server_id").(string))
-
-	server, err := client.GetGuild(ctx, serverId)
-	if err != nil {
-		return diag.Errorf("Error fetching server: %s", err.Error())
-	}
-
-	builder := client.UpdateGuild(ctx, server.ID)
-	edit := false
-
-	if d.HasChange("system_channel_id") {
-		id := d.Get("system_channel_id").(string)
-		builder.SetSystemChannelID(disgord.ParseSnowflakeString(id))
-		edit = true
-	}
-
-	if edit {
-		_, err = builder.Execute()
-		if err != nil {
-			return diag.Errorf("Failed to edit server: %s", err.Error())
+	var guild restGuildDS
+	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID, nil, nil, &guild); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			d.SetId("")
+			return nil
 		}
+		return diag.FromErr(err)
 	}
 
-	return diags
+	d.SetId(guild.ID)
+	_ = d.Set("server_id", guild.ID)
+	_ = d.Set("system_channel_id", guild.SystemChannelID)
+	return nil
 }
 
 func resourceSystemChannelDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
+	serverID := d.Get("server_id").(string)
+	reason := d.Get("reason").(string)
 
-	serverId := disgord.ParseSnowflakeString(d.Get("server_id").(string))
-
-	server, err := client.GetGuild(ctx, serverId)
-	if err != nil {
-		return diag.Errorf("Error fetching server: %s", err.Error())
+	body := map[string]interface{}{
+		"system_channel_id": nil,
 	}
-
-	builder := client.UpdateGuild(ctx, server.ID)
-
-	// Clear system channel (treat delete as reverting to "no system channel").
-	builder.SetSystemChannelID(disgord.NewSnowflake(0))
-
-	_, err = builder.Execute()
-	if err != nil {
-		return diag.Errorf("Failed to edit server: %s", err.Error())
+	if err := c.DoJSONWithReason(ctx, "PATCH", fmt.Sprintf("/guilds/%s", serverID), nil, body, nil, reason); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			return nil
+		}
+		return diag.FromErr(err)
 	}
-
-	return diags
+	return nil
 }

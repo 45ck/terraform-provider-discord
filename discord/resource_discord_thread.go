@@ -3,7 +3,6 @@ package discord
 import (
 	"context"
 	"fmt"
-	"github.com/andersfylling/disgord"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -247,7 +246,7 @@ func resourceDiscordThreadCreate(ctx context.Context, d *schema.ResourceData, m 
 				return diag.FromErr(err)
 			}
 			// API expects embeds array.
-			msg["embeds"] = []*disgord.Embed{embed}
+			msg["embeds"] = []restEmbed{*embed}
 		}
 		body["message"] = msg
 	} else if ev, ok := d.GetOk("embed"); ok {
@@ -255,7 +254,7 @@ func resourceDiscordThreadCreate(ctx context.Context, d *schema.ResourceData, m 
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		body["message"] = map[string]interface{}{"embeds": []*disgord.Embed{embed}}
+		body["message"] = map[string]interface{}{"embeds": []restEmbed{*embed}}
 	}
 
 	var out restThreadChannel

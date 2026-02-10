@@ -1,14 +1,58 @@
 package discord
 
 import (
+	"context"
 	"errors"
-	"github.com/andersfylling/disgord"
+	"fmt"
+	"strings"
+
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/net/context"
-	"strings"
 )
+
+type restChannelOverwriteLegacy struct {
+	ID    string `json:"id"`
+	Type  int    `json:"type"`
+	Allow string `json:"allow"`
+	Deny  string `json:"deny"`
+}
+
+type restChannelLegacy struct {
+	ID                   string                       `json:"id"`
+	GuildID              string                       `json:"guild_id"`
+	Name                 string                       `json:"name"`
+	Type                 uint                         `json:"type"`
+	Position             int                          `json:"position"`
+	ParentID             string                       `json:"parent_id"`
+	Topic                string                       `json:"topic"`
+	NSFW                 bool                         `json:"nsfw"`
+	Bitrate              int                          `json:"bitrate"`
+	UserLimit            int                          `json:"user_limit"`
+	PermissionOverwrites []restChannelOverwriteLegacy `json:"permission_overwrites"`
+}
+
+type restCreateGuildChannelLegacy struct {
+	Name      string `json:"name"`
+	Type      uint   `json:"type"`
+	Topic     string `json:"topic,omitempty"`
+	Bitrate   int    `json:"bitrate,omitempty"`
+	UserLimit int    `json:"user_limit,omitempty"`
+	ParentID  string `json:"parent_id,omitempty"`
+	NSFW      bool   `json:"nsfw,omitempty"`
+	Position  int    `json:"position,omitempty"`
+}
+
+type restModifyChannelLegacy struct {
+	Name            *string `json:"name,omitempty"`
+	Position        *int    `json:"position,omitempty"`
+	ParentID        *string `json:"parent_id,omitempty"`
+	LockPermissions *bool   `json:"lock_permissions,omitempty"`
+	Topic           *string `json:"topic,omitempty"`
+	NSFW            *bool   `json:"nsfw,omitempty"`
+	Bitrate         *int    `json:"bitrate,omitempty"`
+	UserLimit       *int    `json:"user_limit,omitempty"`
+}
 
 func getChannelSchema(channelType string, s map[string]*schema.Schema) map[string]*schema.Schema {
 	addedSchema := map[string]*schema.Schema{
@@ -101,203 +145,234 @@ func validateChannel(d *schema.ResourceData) (bool, error) {
 	return true, nil
 }
 
+func overwritesEqual(a, b []restChannelOverwriteLegacy) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	index := map[string]restChannelOverwriteLegacy{}
+	for _, x := range a {
+		index[fmt.Sprintf("%d:%s", x.Type, x.ID)] = x
+	}
+	for _, x := range b {
+		k := fmt.Sprintf("%d:%s", x.Type, x.ID)
+		v, ok := index[k]
+		if !ok {
+			return false
+		}
+		if v.Allow != x.Allow || v.Deny != x.Deny {
+			return false
+		}
+	}
+	return true
+}
+
 func resourceChannelCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
 	if ok, reason := validateChannel(d); !ok {
 		return diag.FromErr(reason)
 	}
 
-	serverId := getMajorId(d.Get("server_id"))
+	serverID := d.Get("server_id").(string)
 	channelType := d.Get("type").(string)
-	channelTypeInt, _ := getDiscordChannelType(channelType)
+	channelTypeInt, ok := getDiscordChannelType(channelType)
+	if !ok {
+		return diag.Errorf("invalid channel type: %s", channelType)
+	}
 
-	var topic string
-	var bitrate uint
-	var userlimit uint
-	var nsfw bool
-	var parentId disgord.Snowflake
+	body := restCreateGuildChannelLegacy{
+		Name:     d.Get("name").(string),
+		Type:     channelTypeInt,
+		Position: d.Get("position").(int),
+	}
 
 	if channelType == "text" {
 		if v, ok := d.GetOk("topic"); ok {
-			topic = v.(string)
+			body.Topic = v.(string)
 		}
 		if v, ok := d.GetOk("nsfw"); ok {
-			nsfw = v.(bool)
+			body.NSFW = v.(bool)
 		}
 	} else if channelType == "voice" {
 		if v, ok := d.GetOk("bitrate"); ok {
-			bitrate = uint(v.(int))
+			body.Bitrate = v.(int)
 		}
 		if v, ok := d.GetOk("user_limit"); ok {
-			userlimit = uint(v.(int))
+			body.UserLimit = v.(int)
 		}
 	}
 
 	if channelType != "category" {
 		if v, ok := d.GetOk("category"); ok {
-			parentId = getId(v.(string))
+			body.ParentID = v.(string)
 		}
 	}
 
-	channel, err := client.CreateGuildChannel(ctx, serverId, d.Get("name").(string), &disgord.CreateGuildChannelParams{
-		Type:      channelTypeInt,
-		Topic:     topic,
-		Bitrate:   bitrate,
-		UserLimit: userlimit,
-		ParentID:  parentId,
-		NSFW:      nsfw,
-		Position:  d.Get("position").(int),
-	})
-
-	if err != nil {
-		return diag.Errorf("Failed to create channel: %s", err.Error())
+	var out restChannelLegacy
+	if err := c.DoJSON(ctx, "POST", fmt.Sprintf("/guilds/%s/channels", serverID), nil, body, &out); err != nil {
+		return diag.FromErr(err)
 	}
 
-	d.SetId(channel.ID.String())
-	d.Set("server_id", serverId)
+	d.SetId(out.ID)
+	_ = d.Set("server_id", serverID)
 
 	if channelType != "category" {
 		if v, ok := d.GetOk("sync_perms_with_category"); ok && v.(bool) {
-			if channel.ParentID.IsZero() {
-				return append(diags, diag.Errorf("Can't sync permissions with category. Channel (%s) doesn't have a category", channel.ID.String())...)
-			}
-			parent, err := client.GetChannel(ctx, channel.ParentID)
-			if err != nil {
-				return append(diags, diag.Errorf("Can't sync permissions with category. Channel (%s) doesn't have a category", channel.ID.String())...)
+			if out.ParentID == "" {
+				return diag.Errorf("can't sync permissions with category: channel (%s) doesn't have a category", out.ID)
 			}
 
-			if err = syncChannelPermissions(client, ctx, parent, channel); err != nil {
-				return append(diags, diag.Errorf("Can't sync permissions with category for channel %s: %s", channel.ID.String(), err.Error())...)
+			// Use lock_permissions to sync overwrites with the parent category.
+			parentID := out.ParentID
+			lock := true
+			mod := restModifyChannelLegacy{
+				ParentID:        &parentID,
+				LockPermissions: &lock,
+			}
+			if err := c.DoJSON(ctx, "PATCH", fmt.Sprintf("/channels/%s", out.ID), nil, mod, nil); err != nil {
+				return diag.FromErr(err)
 			}
 		}
 	}
 
-	return diags
+	return resourceChannelRead(ctx, d, m)
 }
 
 func resourceChannelRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	channel, err := client.GetChannel(ctx, getId(d.Id()))
-	if err != nil {
-		return diag.Errorf("Failed to fetch channel %s: %s", d.Id(), err.Error())
+	var ch restChannelLegacy
+	if err := c.DoJSON(ctx, "GET", fmt.Sprintf("/channels/%s", d.Id()), nil, nil, &ch); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			d.SetId("")
+			return nil
+		}
+		return diag.FromErr(err)
 	}
 
-	channelType, ok := getTextChannelType(channel.Type)
+	channelType, ok := getTextChannelType(ch.Type)
 	if !ok {
-		return diag.Errorf("Invalid channel type: %d", channel.Type)
+		return diag.Errorf("invalid channel type: %d", ch.Type)
 	}
 
-	d.Set("type", channelType)
-	d.Set("name", channel.Name)
-	d.Set("position", channel.Position)
+	_ = d.Set("type", channelType)
+	_ = d.Set("name", ch.Name)
+	_ = d.Set("position", ch.Position)
 
 	if channelType == "text" {
-		d.Set("topic", channel.Topic)
-		d.Set("nsfw", channel.NSFW)
+		_ = d.Set("topic", ch.Topic)
+		_ = d.Set("nsfw", ch.NSFW)
 	} else if channelType == "voice" {
-		d.Set("bitrate", channel.Bitrate)
-		d.Set("user_limit", channel.UserLimit)
+		_ = d.Set("bitrate", ch.Bitrate)
+		_ = d.Set("user_limit", ch.UserLimit)
 	}
 
 	if channelType != "category" {
-		if !channel.ParentID.IsZero() {
-			parent, err := client.GetChannel(ctx, channel.ParentID)
-			if err != nil {
-				return diag.Errorf("Failed to fetch category of channel %s: %s", channel.ID.String(), err.Error())
+		if ch.ParentID != "" {
+			var parent restChannelLegacy
+			if err := c.DoJSON(ctx, "GET", fmt.Sprintf("/channels/%s", ch.ParentID), nil, nil, &parent); err != nil {
+				return diag.FromErr(err)
 			}
-
-			synced := arePermissionsSynced(channel, parent)
-			d.Set("sync_perms_with_category", synced)
+			_ = d.Set("sync_perms_with_category", overwritesEqual(ch.PermissionOverwrites, parent.PermissionOverwrites))
 		} else {
-			d.Set("sync_perms_with_category", false)
+			_ = d.Set("sync_perms_with_category", false)
 		}
 	}
 
-	if !channel.ParentID.IsZero() {
-		d.Set("category", channel.ParentID.String())
+	if ch.ParentID != "" {
+		_ = d.Set("category", ch.ParentID)
 	} else {
-		d.Set("category", nil)
+		_ = d.Set("category", nil)
 	}
 
-	return diags
+	return nil
 }
 
 func resourceChannelUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
+
 	if ok, reason := validateChannel(d); !ok {
 		return diag.FromErr(reason)
 	}
 
+	channelID := d.Id()
 	channelType := d.Get("type").(string)
-	builder := client.UpdateChannel(ctx, getId(d.Id()))
+
+	mod := restModifyChannelLegacy{}
+	any := false
 
 	if d.HasChange("name") {
-		builder.SetName(d.Get("name").(string))
+		v := d.Get("name").(string)
+		mod.Name = &v
+		any = true
 	}
 	if d.HasChange("position") {
-		builder.SetPosition(d.Get("position").(int))
+		v := d.Get("position").(int)
+		mod.Position = &v
+		any = true
 	}
 
 	if channelType == "text" {
 		if d.HasChange("topic") {
-			builder.SetTopic(d.Get("topic").(string))
+			v := d.Get("topic").(string)
+			mod.Topic = &v
+			any = true
 		}
 		if d.HasChange("nsfw") {
-			builder.SetNsfw(d.Get("nsfw").(bool))
+			v := d.Get("nsfw").(bool)
+			mod.NSFW = &v
+			any = true
 		}
 	} else if channelType == "voice" {
 		if d.HasChange("bitrate") {
-			builder.SetBitrate(uint(d.Get("bitrate").(int)))
+			v := d.Get("bitrate").(int)
+			mod.Bitrate = &v
+			any = true
 		}
 		if d.HasChange("user_limit") {
-			builder.SetUserLimit(uint(d.Get("user_limit").(int)))
+			v := d.Get("user_limit").(int)
+			mod.UserLimit = &v
+			any = true
 		}
-	}
-	if channelType != "category" && d.HasChange("category") {
-		if d.Get("category").(string) != "" {
-			builder.SetParentID(getId(d.Get("category").(string)))
-		} else {
-			builder.RemoveParentID()
-		}
-	}
-
-	channel, err := builder.Execute()
-	if err != nil {
-		return diag.Errorf("Failed to update channel %s: %s", d.Id(), err.Error())
 	}
 
 	if channelType != "category" {
-		if v, ok := d.GetOk("sync_perms_with_category"); ok && v.(bool) {
-			if channel.ParentID.IsZero() {
-				return append(diags, diag.Errorf("Can't sync permissions with category. Channel (%s) doesn't have a category", channel.ID.String())...)
+		if d.HasChange("category") {
+			v := d.Get("category").(string)
+			if v == "" {
+				mod.ParentID = nil
+			} else {
+				mod.ParentID = &v
 			}
-			parent, err := client.GetChannel(ctx, channel.ParentID)
-			if err != nil {
-				return append(diags, diag.Errorf("Can't sync permissions with category. Channel (%s) doesn't have a category", channel.ID.String())...)
-			}
-
-			if err = syncChannelPermissions(client, ctx, parent, channel); err != nil {
-				return append(diags, diag.Errorf("Can't sync permissions with category for channel %s: %s", channel.ID.String(), err.Error())...)
+			any = true
+		}
+		if d.HasChange("sync_perms_with_category") || d.HasChange("category") {
+			if d.Get("sync_perms_with_category").(bool) && d.Get("category").(string) != "" {
+				lock := true
+				mod.LockPermissions = &lock
+				any = true
 			}
 		}
 	}
 
-	return diags
+	if any {
+		if err := c.DoJSON(ctx, "PATCH", fmt.Sprintf("/channels/%s", channelID), nil, mod, nil); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	return resourceChannelRead(ctx, d, m)
 }
 
 func resourceChannelDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-	client := m.(*Context).Client
+	c := m.(*Context).Rest
 
-	_, err := client.DeleteChannel(ctx, getId(d.Id()))
-	if err != nil {
-		return diag.Errorf("Failed to delete channel %s: %s", d.Id(), err.Error())
+	if err := c.DoJSON(ctx, "DELETE", fmt.Sprintf("/channels/%s", d.Id()), nil, nil, nil); err != nil {
+		if IsDiscordHTTPStatus(err, 404) {
+			return nil
+		}
+		return diag.FromErr(err)
 	}
-
-	return diags
+	return nil
 }
