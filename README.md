@@ -33,6 +33,7 @@ goreleaser release --skip-publish
 First-class resources (Framework):
 
 * discord_api_resource (generic CRUD "escape hatch")
+* discord_automod_rule (JSON passthrough)
 * discord_ban
 * discord_channel (supports `type = "category" | "text" | "voice" | ...`)
 * discord_channel_order (bulk ordering/moves)
@@ -44,10 +45,13 @@ First-class resources (Framework):
 * discord_member_nickname
 * discord_member_roles
 * discord_member_timeout
+* discord_member_verification (JSON passthrough)
 * discord_message
+* discord_onboarding (JSON passthrough)
 * discord_role
 * discord_role_everyone
 * discord_role_order (bulk ordering)
+* discord_scheduled_event
 * discord_system_channel
 * discord_welcome_screen
 * discord_webhook
