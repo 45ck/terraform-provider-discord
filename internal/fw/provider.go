@@ -86,6 +86,7 @@ func (p *discordProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewChannelOrderResource,
 		NewChannelPermissionResource,
 		NewBanResource,
+		NewEmojiResource,
 		NewInviteResource,
 		NewRoleResource,
 		NewRoleEveryoneResource,
@@ -97,6 +98,7 @@ func (p *discordProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewMemberNicknameResource,
 		NewSystemChannelResource,
 		NewWelcomeScreenResource,
+		NewWebhookResource,
 	}
 }
 

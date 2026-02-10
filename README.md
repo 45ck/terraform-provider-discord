@@ -35,12 +35,22 @@ First-class resources (Framework):
 * discord_api_resource (generic CRUD "escape hatch")
 * discord_ban
 * discord_channel (supports `type = "category" | "text" | "voice" | ...`)
+* discord_channel_order (bulk ordering/moves)
+* discord_channel_permission (single overwrite)
 * discord_channel_permissions (authoritative permission overwrites)
+* discord_emoji
 * discord_guild_settings (generic guild PATCH "escape hatch")
+* discord_invite
+* discord_member_nickname
+* discord_member_roles
+* discord_member_timeout
 * discord_message
 * discord_role
 * discord_role_everyone
+* discord_role_order (bulk ordering)
+* discord_system_channel
 * discord_welcome_screen
+* discord_webhook
 
 If you need an endpoint that does not have a first-class resource yet, use `discord_api_resource` or `discord_guild_settings` to eliminate "clickops".
 
