@@ -84,7 +84,7 @@ func NewRestClient(token string, httpClient *http.Client) *RestClient {
 		BaseURL:   "https://discord.com/api/v10",
 		Token:     token,
 		HTTP:      httpClient,
-		UserAgent: "terraform-provider-discord (45ck fork)",
+		UserAgent: userAgent(),
 		globalRL:  &globalRateLimiter{},
 	}
 	if c.HTTP == nil {

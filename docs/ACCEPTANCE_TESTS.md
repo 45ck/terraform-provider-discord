@@ -30,6 +30,8 @@ This script downloads a Terraform CLI (if needed) and runs `go test` with the `a
 $env:TF_ACC="1"
 $env:DISCORD_TOKEN="..."
 $env:DISCORD_GUILD_ID="123..."
-go test ./discord -tags=acctest -run TestAcc -v -timeout 120m
+# Tip: on some Windows dev machines, limiting parallelism reduces memory pressure.
+$env:GOMAXPROCS="1"
+$env:GOGC="25"
+go test -p 1 ./discord -tags=acctest -run TestAcc -v -timeout 120m
 ```
-

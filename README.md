@@ -6,6 +6,14 @@ https://registry.terraform.io/providers/Chaotic-Logic/discord/latest
 
 Note: this fork serves the provider over Terraform plugin protocol v6 (via `terraform-plugin-mux` during migration), which requires Terraform CLI 1.0+.
 
+## Examples
+
+See:
+
+* `examples/full_server` (create roles/channels, set permissions, pin a rules message)
+* `examples/guild_settings` (escape hatch for guild/server settings via `discord_guild_settings`)
+* `examples/api_resource_widget` (generic JSON REST escape hatch via `discord_api_resource`)
+
 ## Building the provider
 ### Development
 ```sh

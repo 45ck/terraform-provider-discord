@@ -30,9 +30,32 @@ function Ensure-Terraform {
 }
 
 function Ensure-Go {
-  $goExe = Join-Path $repoRoot ".codex-tools\\go\\go1.26.0\\go\\bin\\go.exe"
-  if (Test-Path $goExe) { return $goExe }
-  throw "Go toolchain not found at $goExe. Run unit tests once to bootstrap .codex-tools/go, or install Go."
+  # 1) Prefer system Go (PATH)
+  $cmd = Get-Command go -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { return $cmd.Source }
+
+  # 2) Check codex tools cache (if present)
+  $codexGoRoot = Join-Path $repoRoot ".codex-tools\\go"
+  if (Test-Path $codexGoRoot) {
+    $candidate = Get-ChildItem $codexGoRoot -Recurse -Filter go.exe -ErrorAction SilentlyContinue |
+      Where-Object { $_.FullName -match "\\\\go\\\\bin\\\\go\\.exe$" } |
+      Sort-Object FullName -Descending |
+      Select-Object -First 1
+    if ($candidate) { return $candidate.FullName }
+  }
+
+  # 3) Check sibling .tmp-go cache (common in this workspace)
+  $parent = Split-Path -Parent $repoRoot
+  $tmpGoRoot = Join-Path $parent ".tmp-go"
+  if (Test-Path $tmpGoRoot) {
+    $candidate = Get-ChildItem $tmpGoRoot -Recurse -Filter go.exe -ErrorAction SilentlyContinue |
+      Where-Object { $_.FullName -match "\\\\go\\\\bin\\\\go\\.exe$" } |
+      Sort-Object FullName -Descending |
+      Select-Object -First 1
+    if ($candidate) { return $candidate.FullName }
+  }
+
+  throw "Go toolchain not found. Install Go or add it to PATH."
 }
 
 $tfExe = Ensure-Terraform
@@ -48,8 +71,10 @@ $env:PATH = (Split-Path -Parent $tfExe) + ";" + $env:PATH
 Push-Location $repoRoot
 try {
   & $tfExe version
-  & $goExe test ./discord -tags=acctest -run TestAcc -v -timeout 120m
+  # Limit parallelism to reduce memory pressure on Windows dev machines.
+  $env:GOMAXPROCS = "1"
+  $env:GOGC = "25"
+  & $goExe test -p 1 ./discord -tags=acctest -run TestAcc -v -timeout 120m
 } finally {
   Pop-Location
 }
-

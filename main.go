@@ -4,12 +4,15 @@ import (
 	"context"
 	"log"
 
+	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/muxserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6/tf6server"
 )
 
 func main() {
 	ctx := context.Background()
+
+	discord.SetBuildVersion(version)
 
 	serverFunc, err := muxserver.New(ctx, version)
 	if err != nil {
