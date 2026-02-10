@@ -12,8 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// New returns a constructor for the Framework side of the provider.
-// This provider is used with terraform-plugin-mux during migration.
+// New returns a constructor for the Plugin Framework provider implementation.
 func New(version string) func() provider.Provider {
 	return func() provider.Provider {
 		return &discordProvider{version: version}
@@ -82,6 +81,14 @@ func (p *discordProvider) Configure(ctx context.Context, req provider.ConfigureR
 func (p *discordProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewGuildSettingsResource,
+		NewAPIResourceResource,
+		NewChannelResource,
+		NewBanResource,
+		NewRoleResource,
+		NewRoleEveryoneResource,
+		NewMessageResource,
+		NewChannelPermissionsResource,
+		NewWelcomeScreenResource,
 	}
 }
 

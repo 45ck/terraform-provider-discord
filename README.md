@@ -4,7 +4,7 @@ This is a fork of [aequasi/terraform-provider-discord](https://github.com/aequas
 
 https://registry.terraform.io/providers/Chaotic-Logic/discord/latest
 
-Note: this fork serves the provider over Terraform plugin protocol v6 (via `terraform-plugin-mux` during migration), which requires Terraform CLI 1.0+.
+Note: this fork serves the provider over Terraform plugin protocol v6, which requires Terraform CLI 1.0+.
 
 ## Examples
 
@@ -30,38 +30,19 @@ goreleaser release --skip-publish
 
 ## Resources
 
-* discord_category_channel
-* discord_channel
-* discord_channel_order
-* discord_channel_permission
-* discord_channel_permissions
-* discord_invite
-* discord_guild_settings
-* discord_member_roles
-* discord_member_nickname
-* discord_member_timeout
+First-class resources (Framework):
+
+* discord_api_resource (generic CRUD "escape hatch")
 * discord_ban
+* discord_channel (supports `type = "category" | "text" | "voice" | ...`)
+* discord_channel_permissions (authoritative permission overwrites)
+* discord_guild_settings (generic guild PATCH "escape hatch")
 * discord_message
-* discord_thread
-* discord_thread_member
 * discord_role
 * discord_role_everyone
-* discord_role_order
-* discord_server
-* discord_system_channel
-* discord_text_channel
-* discord_voice_channel
 * discord_welcome_screen
-* discord_onboarding
-* discord_member_verification
-* discord_automod_rule
-* discord_scheduled_event
-* discord_emoji
-* discord_sticker
-* discord_webhook
-* discord_stage_instance
-* discord_api_resource
-* discord_soundboard_sound
+
+If you need an endpoint that does not have a first-class resource yet, use `discord_api_resource` or `discord_guild_settings` to eliminate "clickops".
 
 ## Data
 

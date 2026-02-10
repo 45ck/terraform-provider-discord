@@ -33,5 +33,5 @@ $env:DISCORD_GUILD_ID="123..."
 # Tip: on some Windows dev machines, limiting parallelism reduces memory pressure.
 $env:GOMAXPROCS="1"
 $env:GOGC="25"
-go test -p 1 ./discord -tags=acctest -run TestAcc -v -timeout 120m
+go test -p 1 ./internal/acctest -tags=acctest -run TestAcc -v -timeout 120m
 ```

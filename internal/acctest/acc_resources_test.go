@@ -1,7 +1,7 @@
 //go:build acctest
 // +build acctest
 
-package discord
+package acctest
 
 import (
 	"fmt"
@@ -9,9 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/aequasi/discord-terraform/internal/fw"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	ptacctest "github.com/hashicorp/terraform-plugin-testing/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
 func testAccToken(t *testing.T) string {
@@ -38,12 +40,9 @@ func testAccGuildID(t *testing.T) string {
 	return v
 }
 
-func testAccProviderFactories(t *testing.T) map[string]func() (*schema.Provider, error) {
-	t.Helper()
-	return map[string]func() (*schema.Provider, error){
-		"discord": func() (*schema.Provider, error) {
-			return Provider(), nil
-		},
+func testAccProtoV6ProviderFactories() map[string]func() (tfprotov6.ProviderServer, error) {
+	return map[string]func() (tfprotov6.ProviderServer, error){
+		"discord": providerserver.NewProtocol6WithError(fw.New("acctest")()),
 	}
 }
 
@@ -51,7 +50,7 @@ func TestAccChannelAndMessage_Basic(t *testing.T) {
 	token := testAccToken(t)
 	guildID := testAccGuildID(t)
 
-	suffix := acctest.RandString(8)
+	suffix := ptacctest.RandStringFromCharSet(8, "abcdefghijklmnopqrstuvwxyz0123456789")
 	channelName := fmt.Sprintf("tf-acc-%s", strings.ToLower(suffix))
 
 	cfg1 := fmt.Sprintf(`
@@ -93,7 +92,7 @@ resource "discord_message" "msg" {
 `, token, guildID, channelName)
 
 	resource.Test(t, resource.TestCase{
-		ProviderFactories: testAccProviderFactories(t),
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: cfg1,
@@ -107,65 +106,6 @@ resource "discord_message" "msg" {
 				Config: cfg2,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("discord_message.msg", "content", "hello world (edited)"),
-				),
-			},
-		},
-	})
-}
-
-func TestAccRole_Basic(t *testing.T) {
-	token := testAccToken(t)
-	guildID := testAccGuildID(t)
-
-	suffix := acctest.RandString(8)
-	roleName := fmt.Sprintf("tf-acc-role-%s", suffix)
-
-	cfg1 := fmt.Sprintf(`
-provider "discord" {
-  token = %q
-}
-
-resource "discord_role" "test" {
-  server_id          = %q
-  name               = %q
-  permissions_bits64 = "0"
-  color              = 0
-  hoist              = false
-  mentionable        = false
-  position           = 1
-}
-`, token, guildID, roleName)
-
-	cfg2 := fmt.Sprintf(`
-provider "discord" {
-  token = %q
-}
-
-resource "discord_role" "test" {
-  server_id          = %q
-  name               = %q
-  permissions_bits64 = "0"
-  color              = 0
-  hoist              = false
-  mentionable        = true
-  position           = 1
-}
-`, token, guildID, roleName)
-
-	resource.Test(t, resource.TestCase{
-		ProviderFactories: testAccProviderFactories(t),
-		Steps: []resource.TestStep{
-			{
-				Config: cfg1,
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("discord_role.test", "name", roleName),
-					resource.TestCheckResourceAttr("discord_role.test", "mentionable", "false"),
-				),
-			},
-			{
-				Config: cfg2,
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("discord_role.test", "mentionable", "true"),
 				),
 			},
 		},

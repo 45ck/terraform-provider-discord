@@ -74,7 +74,7 @@ try {
   # Limit parallelism to reduce memory pressure on Windows dev machines.
   $env:GOMAXPROCS = "1"
   $env:GOGC = "25"
-  & $goExe test -p 1 ./discord -tags=acctest -run TestAcc -v -timeout 120m
+  & $goExe test -p 1 ./internal/acctest -tags=acctest -run TestAcc -v -timeout 120m
 } finally {
   Pop-Location
 }

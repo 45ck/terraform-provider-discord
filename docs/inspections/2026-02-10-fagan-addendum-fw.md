@@ -2,7 +2,7 @@
 
 ## Trigger
 
-After the initial inspection and the "all REST" refactor, this fork started an incremental migration to `terraform-plugin-framework` using `terraform-plugin-mux`.
+After the initial inspection and the "all REST" refactor, this fork migrated to `terraform-plugin-framework` and removed the legacy SDK + `terraform-plugin-mux` plumbing.
 
 This addendum reviews the migration state, the new `discord_guild_settings` Framework resource, and the provider's ability to manage a guild with minimal "clickops".
 
@@ -10,16 +10,15 @@ This addendum reviews the migration state, the new `discord_guild_settings` Fram
 
 ### Strengths
 
-* `terraform-plugin-mux` is the correct tool for a no-flag-day migration (data sources first, then resources).
+* Plugin Framework provides better typing and plan-time hooks (plan modifiers, validators) for long-term maintainability.
 * JSON normalization plan modifiers reduce perpetual diffs for "escape hatch" JSON inputs.
 * Escape hatches (`discord_api_request`, `discord_api_resource`, `discord_guild_settings`) ensure coverage doesn't lag Discord feature rollout.
 
 ### Defects / Risks (Prioritized)
 
 1. Partial Framework migration increases cognitive load and doubles the surface area for schema drift.
-   * Risk: mux requires schemas to match across providers; divergence causes hard-to-debug planning/apply issues.
+   * Risk: during migration, duplicate implementations can drift and cause hard-to-debug planning/apply issues.
    * Mitigation:
-     * Add an automated "schema parity" test (Framework provider vs SDK provider) while mux remains.
      * Migrate resources in larger batches to reduce the "mixed world" duration.
 
 2. Framework resources must remove themselves from state on 404.
@@ -60,13 +59,13 @@ The provider is structurally capable of "no clickops" control of a guild:
 
 However, the Framework migration should be treated as a structured project:
 
-* Keep mux only as long as needed.
-* Maintain schema parity checks.
-* Migrate acceptance tests as soon as the majority of resources move to Framework.
+* Avoid duplicate implementations for long.
+* Keep acceptance tests using `terraform-plugin-testing` with `ProtoV6ProviderFactories`.
 
 ## Post-Inspection Actions (Implemented)
 
-* Added a Framework `discord_guild_settings` resource (replaces the legacy SDK implementation while mux is enabled).
+* Migrated to a Framework-only provider (protocol v6) and removed the legacy SDK + mux.
+* Added a Framework `discord_guild_settings` resource.
 * Added:
   * JSON validation for `payload_json`
   * `reason` support (audit log reason)
@@ -75,4 +74,3 @@ However, the Framework migration should be treated as a structured project:
 * Added examples:
   * `examples/guild_settings`
   * `examples/api_resource_widget`
-

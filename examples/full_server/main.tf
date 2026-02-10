@@ -30,10 +30,9 @@ data "discord_color" "blue" {
   hex = "#1e90ff"
 }
 
-resource "discord_category_channel" "info" {
-  # Legacy resource; kept for backwards compatibility.
-  # Prefer the newer discord_channel resource for full coverage.
+resource "discord_channel" "info" {
   server_id = var.server_id
+  type      = "category"
   name      = "info"
   position  = 0
 }
@@ -42,7 +41,7 @@ resource "discord_channel" "rules" {
   server_id  = var.server_id
   type       = "text"
   name       = "rules"
-  parent_id  = discord_category_channel.info.id
+  parent_id  = discord_channel.info.id
   position   = 0
   topic      = "Read this first."
   nsfw       = false
