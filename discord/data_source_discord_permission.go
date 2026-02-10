@@ -6,16 +6,18 @@ import (
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"math"
 	"strconv"
+	"strings"
 )
 
-var permissions map[string]int
+var permissions map[string]uint64
 
 func dataSourceDiscordPermission() *schema.Resource {
 	// Note: this data source intentionally exposes a wide set of permissions, including newer
 	// high-bit flags (e.g. polls, external apps). This provider is effectively 64-bit only when
 	// using these higher bits because Terraform SDK uses Go int for TypeInt.
-	permissions = map[string]int{
+	permissions = map[string]uint64{
 		// Classic permissions.
 		"create_instant_invite": 1 << 0,
 		"kick_members":          1 << 1,
@@ -84,17 +86,37 @@ func dataSourceDiscordPermission() *schema.Resource {
 		Type:     schema.TypeInt,
 		Optional: true,
 	}
+	schemaMap["allow_extends_bits64"] = &schema.Schema{
+		Type:        schema.TypeString,
+		Optional:    true,
+		Description: "Additional allow permission bits as a 64-bit integer string (decimal or 0x...).",
+	}
 	schemaMap["deny_extends"] = &schema.Schema{
 		Type:     schema.TypeInt,
 		Optional: true,
+	}
+	schemaMap["deny_extends_bits64"] = &schema.Schema{
+		Type:        schema.TypeString,
+		Optional:    true,
+		Description: "Additional deny permission bits as a 64-bit integer string (decimal or 0x...).",
 	}
 	schemaMap["allow_bits"] = &schema.Schema{
 		Type:     schema.TypeInt,
 		Computed: true,
 	}
+	schemaMap["allow_bits64"] = &schema.Schema{
+		Type:        schema.TypeString,
+		Computed:    true,
+		Description: "Allow permission bits as a 64-bit integer string (decimal).",
+	}
 	schemaMap["deny_bits"] = &schema.Schema{
 		Type:     schema.TypeInt,
 		Computed: true,
+	}
+	schemaMap["deny_bits64"] = &schema.Schema{
+		Type:        schema.TypeString,
+		Computed:    true,
+		Description: "Deny permission bits as a 64-bit integer string (decimal).",
 	}
 	for k := range permissions {
 		schemaMap[k] = &schema.Schema{
@@ -123,8 +145,8 @@ func dataSourceDiscordPermission() *schema.Resource {
 func dataSourceDiscordPermissionRead(_ context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	var allowBits int
-	var denyBits int
+	var allowBits uint64
+	var denyBits uint64
 	for perm, bit := range permissions {
 		v := d.Get(perm).(string)
 		if v == "allow" {
@@ -135,9 +157,53 @@ func dataSourceDiscordPermissionRead(_ context.Context, d *schema.ResourceData, 
 		}
 	}
 
+	// Apply extends (legacy int and 64-bit string variants).
+	allowBits |= uint64(d.Get("allow_extends").(int))
+	denyBits |= uint64(d.Get("deny_extends").(int))
+
+	if s := strings.TrimSpace(d.Get("allow_extends_bits64").(string)); s != "" {
+		v, err := strconv.ParseUint(s, 0, 64)
+		if err != nil {
+			return diag.Errorf("allow_extends_bits64 must be a 64-bit integer string: %s", err.Error())
+		}
+		allowBits |= v
+	}
+	if s := strings.TrimSpace(d.Get("deny_extends_bits64").(string)); s != "" {
+		v, err := strconv.ParseUint(s, 0, 64)
+		if err != nil {
+			return diag.Errorf("deny_extends_bits64 must be a 64-bit integer string: %s", err.Error())
+		}
+		denyBits |= v
+	}
+
 	d.SetId(strconv.Itoa(Hashcode(fmt.Sprintf("%d:%d", allowBits, denyBits))))
-	d.Set("allow_bits", allowBits|(d.Get("allow_extends").(int)))
-	d.Set("deny_bits", denyBits|(d.Get("deny_extends").(int)))
+
+	// Always expose 64-bit-safe strings.
+	_ = d.Set("allow_bits64", strconv.FormatUint(allowBits, 10))
+	_ = d.Set("deny_bits64", strconv.FormatUint(denyBits, 10))
+
+	// Best-effort legacy ints. On 32-bit these can overflow for newer high-bit permissions.
+	maxInt := uint64(math.MaxInt)
+	if allowBits <= maxInt {
+		_ = d.Set("allow_bits", int(allowBits))
+	} else {
+		_ = d.Set("allow_bits", 0)
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  "allow_bits overflowed int; use allow_bits64 instead",
+			Detail:   fmt.Sprintf("allow_bits=%d does not fit in TypeInt on this platform", allowBits),
+		})
+	}
+	if denyBits <= maxInt {
+		_ = d.Set("deny_bits", int(denyBits))
+	} else {
+		_ = d.Set("deny_bits", 0)
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  "deny_bits overflowed int; use deny_bits64 instead",
+			Detail:   fmt.Sprintf("deny_bits=%d does not fit in TypeInt on this platform", denyBits),
+		})
+	}
 
 	return diags
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"golang.org/x/net/context"
+	"strconv"
+	"strings"
 )
 
 func resourceDiscordRole() *schema.Resource {
@@ -34,6 +36,12 @@ func resourceDiscordRole() *schema.Resource {
 				Optional: true,
 				Default:  0,
 				ForceNew: false,
+			},
+			"permissions_bits64": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "Permissions as 64-bit integer string (decimal or 0x...). Prefer this for newer high-bit permissions.",
 			},
 			"color": {
 				Type:     schema.TypeInt,
@@ -98,9 +106,18 @@ func resourceRoleCreate(ctx context.Context, d *schema.ResourceData, m interface
 		return diag.Errorf("Server does not exist with that ID: %s", serverId)
 	}
 
+	perms := uint64(d.Get("permissions").(int))
+	if s := strings.TrimSpace(d.Get("permissions_bits64").(string)); s != "" {
+		v, err := uint64StringToPermissionBit(s)
+		if err != nil {
+			return diag.Errorf("invalid permissions_bits64: %s", err.Error())
+		}
+		perms = v
+	}
+
 	role, err := client.CreateGuildRole(ctx, serverId, &disgord.CreateGuildRoleParams{
 		Name:        d.Get("name").(string),
-		Permissions: uint64(d.Get("permissions").(int)),
+		Permissions: perms,
 		Color:       uint(d.Get("color").(int)),
 		Hoist:       d.Get("hoist").(bool),
 		Mentionable: d.Get("mentionable").(bool),
@@ -135,6 +152,7 @@ func resourceRoleCreate(ctx context.Context, d *schema.ResourceData, m interface
 	d.SetId(role.ID.String())
 	d.Set("server_id", server.ID.String())
 	d.Set("managed", role.Managed)
+	_ = d.Set("permissions_bits64", strconv.FormatUint(uint64(role.Permissions), 10))
 
 	return diags
 }
@@ -160,6 +178,7 @@ func resourceRoleRead(ctx context.Context, d *schema.ResourceData, m interface{}
 	d.Set("hoist", role.Hoist)
 	d.Set("mentionable", role.Mentionable)
 	d.Set("permissions", role.Permissions)
+	_ = d.Set("permissions_bits64", strconv.FormatUint(uint64(role.Permissions), 10))
 	d.Set("managed", role.Managed)
 
 	return diags
@@ -211,7 +230,16 @@ func resourceRoleUpdate(ctx context.Context, d *schema.ResourceData, m interface
 	builder.SetColor(uint(d.Get("color").(int)))
 	builder.SetHoist(d.Get("hoist").(bool))
 	builder.SetMentionable(d.Get("mentionable").(bool))
-	builder.SetPermissions(disgord.PermissionBit(d.Get("permissions").(int)))
+
+	perms := uint64(d.Get("permissions").(int))
+	if s := strings.TrimSpace(d.Get("permissions_bits64").(string)); s != "" {
+		v, err := uint64StringToPermissionBit(s)
+		if err != nil {
+			return diag.Errorf("invalid permissions_bits64: %s", err.Error())
+		}
+		perms = v
+	}
+	builder.SetPermissions(disgord.PermissionBit(perms))
 
 	role, err = builder.Execute()
 	if err != nil {
@@ -224,6 +252,7 @@ func resourceRoleUpdate(ctx context.Context, d *schema.ResourceData, m interface
 	d.Set("hoist", role.Hoist)
 	d.Set("mentionable", role.Mentionable)
 	d.Set("permissions", role.Permissions)
+	_ = d.Set("permissions_bits64", strconv.FormatUint(uint64(role.Permissions), 10))
 	d.Set("managed", role.Managed)
 
 	return diags

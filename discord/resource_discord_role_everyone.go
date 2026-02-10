@@ -5,6 +5,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"golang.org/x/net/context"
+	"strconv"
+	"strings"
 )
 
 func resourceDiscordRoleEveryone() *schema.Resource {
@@ -33,6 +35,12 @@ func resourceDiscordRoleEveryone() *schema.Resource {
 				Optional: true,
 				Default:  0,
 				ForceNew: false,
+			},
+			"permissions_bits64": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "Permissions as 64-bit integer string (decimal or 0x...). Prefer this for newer high-bit permissions.",
 			},
 		},
 	}
@@ -63,6 +71,7 @@ func resourceRoleEveryoneRead(ctx context.Context, d *schema.ResourceData, m int
 	}
 
 	d.Set("permissions", role.Permissions)
+	_ = d.Set("permissions_bits64", strconv.FormatUint(uint64(role.Permissions), 10))
 
 	return diags
 }
@@ -75,7 +84,15 @@ func resourceRoleEveryoneUpdate(ctx context.Context, d *schema.ResourceData, m i
 	d.SetId(serverId.String())
 	builder := client.UpdateGuildRole(ctx, serverId, serverId)
 
-	builder.SetPermissions(disgord.PermissionBit(d.Get("permissions").(int)))
+	perms := uint64(d.Get("permissions").(int))
+	if s := strings.TrimSpace(d.Get("permissions_bits64").(string)); s != "" {
+		v, err := uint64StringToPermissionBit(s)
+		if err != nil {
+			return diag.Errorf("invalid permissions_bits64: %s", err.Error())
+		}
+		perms = v
+	}
+	builder.SetPermissions(disgord.PermissionBit(perms))
 
 	role, err := builder.Execute()
 	if err != nil {
@@ -83,6 +100,7 @@ func resourceRoleEveryoneUpdate(ctx context.Context, d *schema.ResourceData, m i
 	}
 
 	d.Set("permissions", role.Permissions)
+	_ = d.Set("permissions_bits64", strconv.FormatUint(uint64(role.Permissions), 10))
 
 	return diags
 }

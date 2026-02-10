@@ -60,9 +60,21 @@ func resourceDiscordChannelPermissions() *schema.Resource {
 							Type:     schema.TypeInt,
 							Optional: true,
 						},
+						"allow_bits64": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Computed:    true,
+							Description: "Allow bitset as 64-bit integer string (decimal or 0x...). Prefer this for newer high-bit permissions.",
+						},
 						"deny": {
 							Type:     schema.TypeInt,
 							Optional: true,
+						},
+						"deny_bits64": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Computed:    true,
+							Description: "Deny bitset as 64-bit integer string (decimal or 0x...). Prefer this for newer high-bit permissions.",
 						},
 					},
 				},
@@ -114,10 +126,37 @@ func desiredOverwritesV2(d *schema.ResourceData) (map[owKey]map[string]interface
 		if err != nil {
 			return nil, err
 		}
+
+		allow64, err := normalizeUint64String(m["allow_bits64"].(string))
+		if err != nil {
+			return nil, fmt.Errorf("invalid allow_bits64 for overwrite %s: %w", oid, err)
+		}
+		deny64, err := normalizeUint64String(m["deny_bits64"].(string))
+		if err != nil {
+			return nil, fmt.Errorf("invalid deny_bits64 for overwrite %s: %w", oid, err)
+		}
+
+		allowStr := allow64
+		if allowStr == "" {
+			if v, ok := m["allow"]; ok && v != nil {
+				allowStr = intToUint64String(v.(int))
+			} else {
+				allowStr = "0"
+			}
+		}
+		denyStr := deny64
+		if denyStr == "" {
+			if v, ok := m["deny"]; ok && v != nil {
+				denyStr = intToUint64String(v.(int))
+			} else {
+				denyStr = "0"
+			}
+		}
+
 		out[owKey{Type: typ, ID: oid}] = map[string]interface{}{
 			"type":  ti,
-			"allow": m["allow"].(int),
-			"deny":  m["deny"].(int),
+			"allow": allowStr,
+			"deny":  denyStr,
 		}
 	}
 	return out, nil
@@ -182,27 +221,35 @@ func resourceDiscordChannelPermissionsRead(ctx context.Context, d *schema.Resour
 
 	outs := make([]map[string]interface{}, 0, len(ch.PermissionOverwrites))
 	for _, ow := range ch.PermissionOverwrites {
-		allow, err := strconv.ParseInt(ow.Allow, 10, 64)
+		allowNorm, err := normalizeUint64String(ow.Allow)
 		if err != nil && ow.Allow != "" {
 			return diag.Errorf("failed to parse overwrite allow bits for %s: %s", ow.ID, err.Error())
 		}
-		deny, err := strconv.ParseInt(ow.Deny, 10, 64)
+		denyNorm, err := normalizeUint64String(ow.Deny)
 		if err != nil && ow.Deny != "" {
 			return diag.Errorf("failed to parse overwrite deny bits for %s: %s", ow.ID, err.Error())
 		}
-		allowInt := int(allow)
-		if int64(allowInt) != allow {
-			return diag.Errorf("overwrite allow bits for %s overflowed int: %s", ow.ID, ow.Allow)
+		allowInt := 0
+		if allowNorm != "" {
+			av, _ := strconv.ParseUint(allowNorm, 10, 64)
+			if i, ierr := uint64ToIntIfFits(av); ierr == nil {
+				allowInt = i
+			}
 		}
-		denyInt := int(deny)
-		if int64(denyInt) != deny {
-			return diag.Errorf("overwrite deny bits for %s overflowed int: %s", ow.ID, ow.Deny)
+		denyInt := 0
+		if denyNorm != "" {
+			dv, _ := strconv.ParseUint(denyNorm, 10, 64)
+			if i, ierr := uint64ToIntIfFits(dv); ierr == nil {
+				denyInt = i
+			}
 		}
 		outs = append(outs, map[string]interface{}{
 			"type":         owTypeFromInt(ow.Type),
 			"overwrite_id": ow.ID,
 			"allow":        allowInt,
+			"allow_bits64": allowNorm,
 			"deny":         denyInt,
+			"deny_bits64":  denyNorm,
 		})
 	}
 

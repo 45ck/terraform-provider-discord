@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"golang.org/x/net/context"
 	"strconv"
+	"strings"
 )
 
 func resourceDiscordChannelPermission() *schema.Resource {
@@ -46,14 +47,28 @@ func resourceDiscordChannelPermission() *schema.Resource {
 				Type:     schema.TypeString,
 			},
 			"allow": {
-				AtLeastOneOf: []string{"allow", "deny"},
+				AtLeastOneOf: []string{"allow", "deny", "allow_bits64", "deny_bits64"},
 				Optional:     true,
 				Type:         schema.TypeInt,
 			},
+			"allow_bits64": {
+				AtLeastOneOf: []string{"allow", "deny", "allow_bits64", "deny_bits64"},
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				Description:  "Allow bitset as 64-bit integer string (decimal or 0x...). Prefer this for newer high-bit permissions.",
+			},
 			"deny": {
-				AtLeastOneOf: []string{"allow", "deny"},
+				AtLeastOneOf: []string{"allow", "deny", "allow_bits64", "deny_bits64"},
 				Optional:     true,
 				Type:         schema.TypeInt,
+			},
+			"deny_bits64": {
+				AtLeastOneOf: []string{"allow", "deny", "allow_bits64", "deny_bits64"},
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				Description:  "Deny bitset as 64-bit integer string (decimal or 0x...). Prefer this for newer high-bit permissions.",
 			},
 		},
 	}
@@ -66,9 +81,26 @@ func resourceChannelPermissionCreate(ctx context.Context, d *schema.ResourceData
 	channelId := getId(d.Get("channel_id").(string))
 	overwriteId := getId(d.Get("overwrite_id").(string))
 
+	allow := uint64(d.Get("allow").(int))
+	if s := d.Get("allow_bits64").(string); strings.TrimSpace(s) != "" {
+		v, err := uint64StringToPermissionBit(s)
+		if err != nil {
+			return diag.Errorf("invalid allow_bits64: %s", err.Error())
+		}
+		allow = v
+	}
+	deny := uint64(d.Get("deny").(int))
+	if s := d.Get("deny_bits64").(string); strings.TrimSpace(s) != "" {
+		v, err := uint64StringToPermissionBit(s)
+		if err != nil {
+			return diag.Errorf("invalid deny_bits64: %s", err.Error())
+		}
+		deny = v
+	}
+
 	err := client.UpdateChannelPermissions(ctx, channelId, overwriteId, &disgord.UpdateChannelPermissionsParams{
-		Allow: disgord.PermissionBit(d.Get("allow").(int)),
-		Deny:  disgord.PermissionBit(d.Get("deny").(int)),
+		Allow: disgord.PermissionBit(allow),
+		Deny:  disgord.PermissionBit(deny),
 		Type:  d.Get("type").(string),
 	})
 
@@ -95,8 +127,19 @@ func resourceChannelPermissionRead(ctx context.Context, d *schema.ResourceData, 
 
 	for _, x := range channel.PermissionOverwrites {
 		if x.Type == d.Get("type").(string) && x.ID == overwriteId {
-			d.Set("allow", int(x.Allow))
-			d.Set("deny", int(x.Deny))
+			_ = d.Set("allow_bits64", strconv.FormatUint(uint64(x.Allow), 10))
+			_ = d.Set("deny_bits64", strconv.FormatUint(uint64(x.Deny), 10))
+
+			if i, err := uint64ToIntIfFits(uint64(x.Allow)); err == nil {
+				_ = d.Set("allow", i)
+			} else {
+				_ = d.Set("allow", 0)
+			}
+			if i, err := uint64ToIntIfFits(uint64(x.Deny)); err == nil {
+				_ = d.Set("deny", i)
+			} else {
+				_ = d.Set("deny", 0)
+			}
 			break
 		}
 	}
@@ -111,9 +154,26 @@ func resourceChannelPermissionUpdate(ctx context.Context, d *schema.ResourceData
 	channelId := getId(d.Get("channel_id").(string))
 	overwriteId := getId(d.Get("overwrite_id").(string))
 
+	allow := uint64(d.Get("allow").(int))
+	if s := d.Get("allow_bits64").(string); strings.TrimSpace(s) != "" {
+		v, err := uint64StringToPermissionBit(s)
+		if err != nil {
+			return diag.Errorf("invalid allow_bits64: %s", err.Error())
+		}
+		allow = v
+	}
+	deny := uint64(d.Get("deny").(int))
+	if s := d.Get("deny_bits64").(string); strings.TrimSpace(s) != "" {
+		v, err := uint64StringToPermissionBit(s)
+		if err != nil {
+			return diag.Errorf("invalid deny_bits64: %s", err.Error())
+		}
+		deny = v
+	}
+
 	err := client.UpdateChannelPermissions(ctx, channelId, overwriteId, &disgord.UpdateChannelPermissionsParams{
-		Allow: disgord.PermissionBit(d.Get("allow").(int)),
-		Deny:  disgord.PermissionBit(d.Get("deny").(int)),
+		Allow: disgord.PermissionBit(allow),
+		Deny:  disgord.PermissionBit(deny),
 		Type:  d.Get("type").(string),
 	})
 
