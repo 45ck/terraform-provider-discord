@@ -1,7 +1,9 @@
 package discord
 
 import (
+	"context"
 	"github.com/andersfylling/disgord"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,26 +27,53 @@ type LimitedRoundTripper struct {
 }
 
 func (lrt LimitedRoundTripper) RoundTrip(req *http.Request) (res *http.Response, e error) {
-	// Send the request, get the response (or the error)
-	res, e = lrt.Proxied.RoundTrip(req)
+	rt := lrt.Proxied
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
 
-	if res != nil && res.StatusCode == 429 {
+	// Disgord uses the provided HTTP client. This transport wrapper retries 429s defensively.
+	// Important: close the body on 429 before retrying to avoid leaking connections.
+	for attempt := 0; attempt < 10; attempt++ {
+		res, e = rt.RoundTrip(req)
+		if e != nil || res == nil {
+			return res, e
+		}
+		if res.StatusCode != http.StatusTooManyRequests {
+			return res, nil
+		}
+
 		retryAfter := res.Header.Get("X-RateLimit-Reset-After")
 		if retryAfter == "" {
 			retryAfter = res.Header.Get("Retry-After")
 		}
-
-		// Discord headers are seconds (may be float). Be conservative.
 		f, _ := strconv.ParseFloat(retryAfter, 64)
 		if f <= 0 {
 			f = 1
 		}
-		time.Sleep(time.Duration(f*1000.0) * time.Millisecond)
 
-		return lrt.RoundTrip(req)
+		// Drain and close the body so the connection can be reused.
+		_, _ = io.Copy(io.Discard, res.Body)
+		_ = res.Body.Close()
+
+		sleep := time.Duration(f*1000.0) * time.Millisecond
+		if err := sleepWithContext(req.Context(), sleep); err != nil {
+			return nil, err
+		}
 	}
 
-	return
+	return nil, context.DeadlineExceeded
+}
+
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
 
 func (c *Config) Client() (*Context, error) {

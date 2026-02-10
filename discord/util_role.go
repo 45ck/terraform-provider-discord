@@ -3,9 +3,7 @@ package discord
 import (
 	"context"
 	"github.com/andersfylling/disgord"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"log"
 )
 
 type Role struct {
@@ -76,8 +74,6 @@ func reorderRoles(ctx context.Context, m interface{}, serverId disgord.Snowflake
 	for index, r := range roles {
 		params = append(params, disgord.UpdateGuildRolePositionsParams{ID: r.ID, Position: index})
 	}
-
-	log.Print(spew.Sdump(params))
 
 	roles, err = client.UpdateGuildRolePositions(ctx, serverId, params)
 	if err != nil {
