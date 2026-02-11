@@ -1,0 +1,36 @@
+name: Feature request
+description: Request a new resource/data source or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This provider aims for "no clickops". First-class resources are great, but the escape hatches
+        (`discord_api_resource`, `discord_api_request`, `discord_guild_settings`) exist to cover the full API.
+
+  - type: input
+    id: discord_api_docs
+    attributes:
+      label: Discord API docs link
+      placeholder: "https://discord.com/developers/docs/..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What are you trying to do that requires clickops today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed schema / behavior
+      description: Include import ID shape, drift expectations, and delete semantics.
+      render: text
+    validations:
+      required: true
+

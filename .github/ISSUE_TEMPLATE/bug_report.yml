@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a defect in the provider
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please include enough detail for us to reproduce.
+
+  - type: input
+    id: terraform_version
+    attributes:
+      label: Terraform CLI version
+      placeholder: "terraform v1.x.x"
+    validations:
+      required: true
+
+  - type: input
+    id: provider_version
+    attributes:
+      label: Provider version
+      placeholder: "Chaotic-Logic/discord vX.Y.Z"
+    validations:
+      required: true
+
+  - type: input
+    id: discord_api_route
+    attributes:
+      label: Discord API route (if known)
+      placeholder: "PATCH /guilds/{guild.id}"
+    validations:
+      required: false
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Terraform configuration (minimal)
+      description: Redact tokens, IDs if needed.
+      render: hcl
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / logs
+      description: Include relevant error output.
+      render: text
+    validations:
+      required: true
+

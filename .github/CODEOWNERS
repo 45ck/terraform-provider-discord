@@ -1,0 +1,14 @@
+# Default owners for the whole repo.
+* @45ck
+
+# Provider core
+/discord/ @45ck
+/internal/ @45ck
+
+# Docs
+/docs/ @45ck
+/examples/ @45ck
+
+# CI / release
+/.github/ @45ck
+/.goreleaser.yml @45ck
