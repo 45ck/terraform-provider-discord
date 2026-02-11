@@ -82,3 +82,17 @@ If you need an endpoint that does not have a first-class resource yet, use `disc
 Legacy per-type channel data sources (`discord_text_channel`, `discord_voice_channel`, etc.) are not planned.
 
 Use `discord_channel` (by name lookup) or `discord_api_request` for generic GET access instead.
+
+## Import IDs
+
+Some Discord objects are only addressable via a guild-scoped route. For those resources, import requires a composite ID:
+
+* `discord_automod_rule`: `server_id:rule_id`
+* `discord_emoji`: `server_id:emoji_id`
+* `discord_role`: `server_id:role_id`
+* `discord_scheduled_event`: `server_id:event_id`
+* `discord_member_roles`: `server_id:user_id`
+* `discord_member_nickname`: `server_id:user_id`
+* `discord_member_timeout`: `server_id:user_id`
+* `discord_message`: `channel_id:message_id`
+* `discord_channel_permission`: `channel_id:overwrite_id:type`
