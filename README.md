@@ -6,6 +6,22 @@ https://registry.terraform.io/providers/Chaotic-Logic/discord/latest
 
 Note: this fork serves the provider over Terraform plugin protocol v6, which requires Terraform CLI 1.0+.
 
+## Project Status
+
+This repository is a maintained community fork.
+
+Lineage:
+
+* Upstream (original): `aequasi/terraform-provider-discord`
+* Prior maintained fork: `Chaotic-Logic/terraform-provider-discord`
+* This fork: `45ck/terraform-provider-discord`
+
+This project is not affiliated with Discord.
+
+## License
+
+GPL-3.0 (see `LICENSE`).
+
 ## Examples
 
 See:
@@ -33,6 +49,10 @@ goreleaser release --skip-publish
 ```
 
 Acceptance tests are opt-in. See `docs/ACCEPTANCE_TESTS.md` (and `scripts/testacc.ps1` for a PowerShell helper).
+
+## Security
+
+Please report vulnerabilities via GitHub Security Advisories. See `SECURITY.md`.
 
 ## Resources
 
