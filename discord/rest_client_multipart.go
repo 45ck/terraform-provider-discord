@@ -39,6 +39,13 @@ func (c *RestClient) DoMultipartWithReason(
 
 	// Rate-limit retry loop.
 	for attempt := 0; attempt < 10; attempt++ {
+		// Coordinate global limits across concurrent requests.
+		if c.globalRL != nil {
+			if err := c.globalRL.wait(ctx); err != nil {
+				return err
+			}
+		}
+
 		var buf bytes.Buffer
 		w := multipart.NewWriter(&buf)
 
@@ -96,6 +103,14 @@ func (c *RestClient) DoMultipartWithReason(
 			}
 
 			sleep := time.Duration(rl.RetryAfter*1000.0) * time.Millisecond
+
+			// Discord can respond with a global limit; coordinate it.
+			if rl.Global || strings.EqualFold(res.Header.Get("X-RateLimit-Global"), "true") {
+				if c.globalRL != nil {
+					c.globalRL.setCooldown(sleep)
+				}
+			}
+
 			t := time.NewTimer(sleep)
 			select {
 			case <-ctx.Done():

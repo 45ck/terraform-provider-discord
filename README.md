@@ -52,7 +52,13 @@ First-class resources (Framework):
 * discord_role_everyone
 * discord_role_order (bulk ordering)
 * discord_scheduled_event
+* discord_server
+* discord_soundboard_sound
+* discord_stage_instance
+* discord_sticker
 * discord_system_channel
+* discord_thread
+* discord_thread_member
 * discord_welcome_screen
 * discord_webhook
 
@@ -96,3 +102,6 @@ Some Discord objects are only addressable via a guild-scoped route. For those re
 * `discord_member_timeout`: `server_id:user_id`
 * `discord_message`: `channel_id:message_id`
 * `discord_channel_permission`: `channel_id:overwrite_id:type`
+* `discord_sticker`: `server_id:sticker_id`
+* `discord_soundboard_sound`: `server_id:sound_id`
+* `discord_thread_member`: `thread_id:user_id`
