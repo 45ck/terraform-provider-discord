@@ -12,9 +12,9 @@ This repository is a maintained community fork.
 
 Lineage:
 
-* Upstream (original): `aequasi/terraform-provider-discord`
-* Prior maintained fork: `Chaotic-Logic/terraform-provider-discord`
-* This fork: `45ck/terraform-provider-discord`
+* Upstream (original): `aequasi/terraform-provider-discord` (`https://github.com/aequasi/terraform-provider-discord`)
+* Prior maintained fork: `Chaotic-Logic/terraform-provider-discord` (`https://github.com/Chaotic-Logic/terraform-provider-discord`)
+* This fork: `45ck/terraform-provider-discord` (`https://github.com/45ck/terraform-provider-discord`)
 
 This project is not affiliated with Discord.
 
