@@ -66,6 +66,10 @@ goreleaser release --skip-publish
 
 Acceptance tests are opt-in. See `docs/ACCEPTANCE_TESTS.md` (and `scripts/testacc.ps1` for a PowerShell helper).
 
+Release process: `docs/RELEASING.md`.
+
+Change history: `CHANGELOG.md`.
+
 ## Security
 
 Please report vulnerabilities via GitHub Security Advisories. See `SECURITY.md`.
