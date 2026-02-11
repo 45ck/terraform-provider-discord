@@ -1,10 +1,16 @@
 TEST?=$$(go list ./... | grep -v 'vendor')
-HOSTNAME=chaoticlogic.us
-NAMESPACE=dev
-NAME=discord
-BINARY=terraform-provider-${NAME}
-VERSION=0.0.1
-OS_ARCH=linux_amd64
+
+# Terraform public registry installs providers under this host:
+HOSTNAME?=registry.terraform.io
+
+# If you publish under a different namespace, override this when invoking make:
+# `make install NAMESPACE=YourOrg`
+NAMESPACE?=Chaotic-Logic
+
+NAME?=discord
+BINARY?=terraform-provider-${NAME}
+VERSION?=0.0.0-dev
+OS_ARCH?=linux_amd64
 
 default: install
 

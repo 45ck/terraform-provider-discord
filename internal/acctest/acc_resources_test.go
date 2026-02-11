@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aequasi/discord-terraform/internal/fw"
+	"github.com/45ck/terraform-provider-discord/internal/fw"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	ptacctest "github.com/hashicorp/terraform-plugin-testing/helper/acctest"
@@ -111,3 +111,4 @@ resource "discord_message" "msg" {
 		},
 	})
 }
+

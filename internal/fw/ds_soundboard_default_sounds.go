@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aequasi/discord-terraform/discord"
+	"github.com/45ck/terraform-provider-discord/discord"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"

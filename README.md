@@ -18,6 +18,12 @@ Lineage:
 
 This project is not affiliated with Discord.
 
+## Module Path
+
+The Go module path for this repo is `github.com/45ck/terraform-provider-discord`.
+
+This does not affect Terraform provider installation (which uses the provider source address in your Terraform configuration).
+
 ## License
 
 GPL-3.0 (see `LICENSE`).

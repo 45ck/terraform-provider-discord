@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aequasi/discord-terraform/discord"
-	"github.com/aequasi/discord-terraform/internal/fw/planmod"
-	"github.com/aequasi/discord-terraform/internal/fw/validate"
+	"github.com/45ck/terraform-provider-discord/discord"
+	"github.com/45ck/terraform-provider-discord/internal/fw/planmod"
+	"github.com/45ck/terraform-provider-discord/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"

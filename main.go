@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/aequasi/discord-terraform/discord"
-	"github.com/aequasi/discord-terraform/internal/fw"
+	"github.com/45ck/terraform-provider-discord/discord"
+	"github.com/45ck/terraform-provider-discord/internal/fw"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 

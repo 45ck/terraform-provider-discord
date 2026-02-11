@@ -3,7 +3,7 @@ package fw
 import (
 	"context"
 
-	"github.com/aequasi/discord-terraform/discord"
+	"github.com/45ck/terraform-provider-discord/discord"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/provider"

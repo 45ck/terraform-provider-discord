@@ -3,7 +3,7 @@ package planmod
 import (
 	"context"
 
-	"github.com/aequasi/discord-terraform/discord"
+	"github.com/45ck/terraform-provider-discord/discord"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
