@@ -93,3 +93,9 @@ resource "discord_soundboard_sound" "ping" {
   emoji_name      = "🔊"
 }
 
+# Optional: manage the server widget settings (no clickops).
+# If you enable it, set channel_id to a public channel.
+resource "discord_widget_settings" "this" {
+  server_id = var.server_id
+  enabled   = false
+}

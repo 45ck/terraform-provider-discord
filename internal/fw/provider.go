@@ -81,6 +81,7 @@ func (p *discordProvider) Configure(ctx context.Context, req provider.ConfigureR
 func (p *discordProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewGuildSettingsResource,
+		NewWidgetSettingsResource,
 		NewAPIResourceResource,
 		NewAutoModRuleResource,
 		NewChannelResource,
@@ -108,6 +109,8 @@ func (p *discordProvider) Resources(_ context.Context) []func() resource.Resourc
 		NewThreadResource,
 		NewThreadMemberResource,
 		NewWelcomeScreenResource,
+		NewGuildTemplateResource,
+		NewGuildTemplateSyncResource,
 		NewWebhookResource,
 	}
 }

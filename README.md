@@ -41,6 +41,8 @@ First-class resources (Framework):
 * discord_channel_permission (single overwrite)
 * discord_channel_permissions (authoritative permission overwrites)
 * discord_emoji
+* discord_guild_template
+* discord_guild_template_sync (sync action resource; bump `sync_nonce` to force resync)
 * discord_guild_settings (generic guild PATCH "escape hatch")
 * discord_invite
 * discord_member_nickname
@@ -60,6 +62,7 @@ First-class resources (Framework):
 * discord_system_channel
 * discord_thread
 * discord_thread_member
+* discord_widget_settings
 * discord_welcome_screen
 * discord_webhook
 
@@ -106,3 +109,6 @@ Some Discord objects are only addressable via a guild-scoped route. For those re
 * `discord_sticker`: `server_id:sticker_id`
 * `discord_soundboard_sound`: `server_id:sound_id`
 * `discord_thread_member`: `thread_id:user_id`
+* `discord_guild_template`: `server_id:template_code`
+* `discord_guild_template_sync`: `server_id:template_code`
+* `discord_widget_settings`: `server_id`
