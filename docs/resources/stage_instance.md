@@ -5,7 +5,7 @@ Manages a stage instance (topic + privacy) for a stage channel.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_stage_instance live {
+resource "discord_stage_instance" "live" {
   channel_id     = discord_channel.stage.id
   topic          = "Town Hall"
   privacy_level  = 2
@@ -19,8 +19,8 @@ resource discord_stage_instance live {
 * `privacy_level` (Optional) Privacy level (default 2)
 * `send_start_notification` (Optional, ForceNew) Send start notification on create
 * `scheduled_event_id` (Optional, ForceNew) Link to a scheduled event
+* `reason` (Optional) Audit log reason (not read back)
 
 ## Attribute Reference
 
 * `server_id` Guild ID
-

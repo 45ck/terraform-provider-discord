@@ -7,7 +7,7 @@ Prefer first-class resources when they exist. This is an escape hatch.
 ## Example Usage
 
 ```hcl-terraform
-data discord_api_request channels {
+data "discord_api_request" "channels" {
   path = "/guilds/${var.server_id}/channels"
 }
 

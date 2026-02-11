@@ -5,7 +5,7 @@ A resource to create an Invite for a channel
 ## Example Usage
 
 ```hcl-terraform
-resource discord_invite chatting {
+resource "discord_invite" "chatting" {
     channel_id = var.channel_id
     max_age = 0
 }

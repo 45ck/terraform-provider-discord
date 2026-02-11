@@ -7,7 +7,7 @@ Use `user_id = "@me"` to manage the bot's membership (join/leave thread).
 ## Example Usage
 
 ```hcl-terraform
-resource discord_thread_member bot_join {
+resource "discord_thread_member" "bot_join" {
   thread_id = discord_thread.t.id
   user_id   = "@me"
 }

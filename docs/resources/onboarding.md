@@ -8,7 +8,7 @@ is deep and evolves over time.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_onboarding main {
+resource "discord_onboarding" "main" {
   server_id = var.server_id
   payload_json = jsonencode({
     enabled = true

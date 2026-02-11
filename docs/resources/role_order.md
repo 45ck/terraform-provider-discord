@@ -5,7 +5,7 @@ Applies bulk role ordering in a guild.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_role_order order {
+resource "discord_role_order" "order" {
   server_id = var.server_id
 
   role {

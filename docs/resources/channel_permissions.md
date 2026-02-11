@@ -11,7 +11,7 @@ use `discord_channel_permission` instead.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_channel_permissions perms {
+resource "discord_channel_permissions" "perms" {
   channel_id = discord_channel.rules.id
 
   overwrite {

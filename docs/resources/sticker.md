@@ -7,7 +7,7 @@ Note: sticker assets are create-only (`file_path` is `ForceNew`).
 ## Example Usage
 
 ```hcl-terraform
-resource discord_sticker wave {
+resource "discord_sticker" "wave" {
   server_id    = var.server_id
   name         = "wave"
   description  = "Hello"

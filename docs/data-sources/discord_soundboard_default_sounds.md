@@ -5,7 +5,7 @@ Lists Discord's default soundboard sounds.
 ## Example Usage
 
 ```hcl-terraform
-data discord_soundboard_default_sounds defaults {}
+data "discord_soundboard_default_sounds" "defaults" {}
 ```
 
 ## Attribute Reference

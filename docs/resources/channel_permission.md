@@ -5,7 +5,7 @@ A resource to create a Permission Overwrite for a channel
 ## Example Usage
 
 ```hcl-terraform
-resource discord_channel_permission chatting {
+resource "discord_channel_permission" "chatting" {
     channel_id = var.channel_id
     type = "role"
     overwrite_id = var.role_id

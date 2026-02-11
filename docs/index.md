@@ -9,19 +9,22 @@ Use the navigation on the left to read more about the resources and data sources
 ## Example Usage
 
 ```hcl-terraform
-provider discord {
-    token = var.discord_token
+provider "discord" {
+  token = var.discord_token
 }
 
-data discord_local_image logo {
-    file = "logo.png"
+data "discord_local_image" "logo" {
+  file = "logo.png"
 }
 
-resource discord_server my_server {
-    name = "My Awesome Server"
-    region = "us-west"
-    default_message_notifications = 0
-    icon_data_uri = data.discord_local_image.logo.data_uri
+resource "discord_server" "my_server" {
+  # The provider cannot create guilds with bot tokens. Create the server out-of-band,
+  # then import it and manage it via Terraform.
+  server_id = var.discord_guild_id
+  name      = "My Awesome Server"
+
+  default_message_notifications = 0
+  icon_data_uri                 = data.discord_local_image.logo.data_uri
 }
 ```
 

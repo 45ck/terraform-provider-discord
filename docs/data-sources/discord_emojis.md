@@ -5,7 +5,7 @@ Lists emojis in a guild.
 ## Example Usage
 
 ```hcl-terraform
-data discord_emojis all {
+data "discord_emojis" "all" {
   server_id = var.server_id
 }
 ```

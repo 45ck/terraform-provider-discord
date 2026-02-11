@@ -5,7 +5,7 @@ Fetches a server's information.
 ## Example Usage
 
 ```hcl-terraform
-data discord_server discord_api {
+data "discord_server" "discord_api" {
     server_id = "81384788765712384"
 }
 

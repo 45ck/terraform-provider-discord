@@ -10,7 +10,7 @@ recreate the thread.
 ### Thread Without Message
 
 ```hcl-terraform
-resource discord_thread t {
+resource "discord_thread" "t" {
   channel_id = discord_text_channel.general.id
   name       = "discussion"
   type       = "public_thread"
@@ -20,7 +20,7 @@ resource discord_thread t {
 ### Forum Post
 
 ```hcl-terraform
-resource discord_thread post {
+resource "discord_thread" "post" {
   channel_id = var.forum_channel_id
   name       = "Release Notes"
   type       = "public_thread"

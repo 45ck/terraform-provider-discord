@@ -5,7 +5,7 @@ Manages a channel webhook.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_webhook alerts {
+resource "discord_webhook" "alerts" {
   channel_id = discord_text_channel.alerts.id
   name       = "alerts"
 }

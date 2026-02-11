@@ -7,7 +7,7 @@ A resource to create a message
 ### Content Example
 
 ```hcl-terraform
-resource discord_message hello_world {
+resource "discord_message" "hello_world" {
     channel_id = var.channel_id
     content = "hello world"
 }
@@ -16,7 +16,7 @@ resource discord_message hello_world {
 ### Embed Example
 
 ```hcl-terraform
-resource discord_message hello_world {
+resource "discord_message" "hello_world" {
     channel_id = var.channel_id
     embed {
         title = "Hello World"

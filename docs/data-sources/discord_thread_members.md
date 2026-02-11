@@ -5,7 +5,7 @@ Lists members in a thread.
 ## Example Usage
 
 ```hcl-terraform
-data discord_thread_members members {
+data "discord_thread_members" "members" {
   thread_id = discord_thread.t.id
 }
 

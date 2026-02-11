@@ -7,7 +7,7 @@ This is powerful and can be disruptive.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_ban spambot {
+resource "discord_ban" "spambot" {
   server_id = var.server_id
   user_id   = "123456789012345678"
   delete_message_seconds = 3600

@@ -8,7 +8,7 @@ This is a more flexible alternative to the older per-type channel resources
 ## Example Usage
 
 ```hcl-terraform
-resource discord_channel rules {
+resource "discord_channel" "rules" {
   server_id = var.server_id
   type      = "text"
   name      = "rules"
@@ -21,6 +21,7 @@ resource discord_channel rules {
 * `server_id` (Required) ID of the server this channel is in
 * `type` (Required) Channel type. Supported: `text`, `voice`, `category`, `news`, `stage`, `forum`, `media`
 * `name` (Required) Channel name
+* `reason` (Optional) Audit log reason (not read back)
 * `position` (Optional) Channel position
 * `parent_id` (Optional) Category ID to place this channel in
 * `topic` (Optional) Channel topic (text-like channels)
@@ -46,3 +47,6 @@ resource discord_channel rules {
 
 Note: Discord enforces which fields are valid for a given type; invalid combinations
 will error from the API.
+
+Note: for `available_tag` and `default_reaction_emoji`, Discord requires that you set at most one of
+`emoji_id` or `emoji_name` for a given object; the provider validates this at plan time.

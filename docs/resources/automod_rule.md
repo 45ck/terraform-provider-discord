@@ -8,7 +8,7 @@ AutoMod rules have multiple shapes depending on `trigger_type`, so this resource
 ## Example Usage
 
 ```hcl-terraform
-resource discord_automod_rule block_invites {
+resource "discord_automod_rule" "block_invites" {
   server_id = var.server_id
 
   payload_json = jsonencode({

@@ -5,11 +5,11 @@ Fetches a role's information from a server.
 ## Example Usage
 
 ```hcl-terraform
-data discord_role mods_id {
+data "discord_role" "mods_id" {
     server_id = "81384788765712384"
     role_id   = "175643578071121920"
 }
-data discord_role mods_name {
+data "discord_role" "mods_name" {
     server_id = "81384788765712384"
     name      = "Mods"
 }

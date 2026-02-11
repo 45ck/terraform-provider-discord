@@ -6,6 +6,8 @@
 3. Keep commits small and scoped.
 
 ## Testing
-- Run unit tests before opening a PR (if you have Go installed): `go test ./...`
-- Acceptance tests are opt-in and must not run in CI by default.
+* Run unit tests before opening a PR: `go test ./...`
+* Run `go vet ./...` for a quick static check.
+* Acceptance tests are opt-in and must not run in CI by default.
+  * See `docs/ACCEPTANCE_TESTS.md`.
 

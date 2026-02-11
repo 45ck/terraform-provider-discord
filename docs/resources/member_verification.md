@@ -8,7 +8,7 @@ covered by the provider's structured resources.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_member_verification gate {
+resource "discord_member_verification" "gate" {
   server_id = var.server_id
   payload_json = jsonencode({
     enabled = true

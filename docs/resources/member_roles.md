@@ -5,7 +5,7 @@ A resource to manage member roles for a server
 ## Example Usage
 
 ```hcl-terraform
-resource discord_member_roles jake {
+resource "discord_member_roles" "jake" {
     user_id = var.user_id
     server_id = var.server_id
     role {

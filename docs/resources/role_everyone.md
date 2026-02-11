@@ -5,7 +5,7 @@ A resource to manage the `@everyone` role's permissions in a server.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_role_everyone everyone {
+resource "discord_role_everyone" "everyone" {
     server_id = var.server_id
     # Prefer permissions_bits64 for future-proof permissions.
     permissions_bits64 = data.discord_permission.everyone.allow_bits64

@@ -5,7 +5,7 @@ Manages a guild emoji.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_emoji party {
+resource "discord_emoji" "party" {
   server_id       = var.server_id
   name            = "party"
   image_data_uri  = data.discord_local_image.party.data_uri

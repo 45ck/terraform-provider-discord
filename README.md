@@ -19,8 +19,11 @@ See:
 ### Development
 ```sh
 go mod vendor
-make
+go test ./...
+go build ./...
 ```
+
+Note: `make` targets are primarily intended for *nix environments. On Windows, prefer the direct `go ...` commands above.
 
 ### Release
 ```
@@ -28,6 +31,8 @@ go mod vendor
 export GPG_FINGERPRINT="D081560F57E59EDA7CB369BE2FFBD6BE37B85C17"
 goreleaser release --skip-publish
 ```
+
+Acceptance tests are opt-in. See `docs/ACCEPTANCE_TESTS.md` (and `scripts/testacc.ps1` for a PowerShell helper).
 
 ## Resources
 

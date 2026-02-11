@@ -5,7 +5,7 @@ Looks up a channel by name within a server.
 ## Example Usage
 
 ```hcl-terraform
-data discord_channel rules {
+data "discord_channel" "rules" {
   server_id = var.server_id
   name      = "rules"
   type      = "text"

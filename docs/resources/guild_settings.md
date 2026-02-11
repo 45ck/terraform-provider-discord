@@ -8,7 +8,7 @@ first-class arguments on `discord_server`.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_guild_settings main {
+resource "discord_guild_settings" "main" {
   server_id = var.server_id
 
   payload_json = jsonencode({

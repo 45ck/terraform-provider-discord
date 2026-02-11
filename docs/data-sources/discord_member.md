@@ -5,7 +5,7 @@ Fetches a member's information from a server.
 ## Example Usage
 
 ```hcl-terraform
-data discord_member jake {
+data "discord_member" "jake" {
     server_id = "81384788765712384"
     user_id   = "103559217914318848"
 }

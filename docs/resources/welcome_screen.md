@@ -5,7 +5,7 @@ Manages the server welcome screen for a community-enabled guild.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_welcome_screen main {
+resource "discord_welcome_screen" "main" {
   server_id    = var.server_id
   enabled      = true
   description  = "Read the rules and say hi."

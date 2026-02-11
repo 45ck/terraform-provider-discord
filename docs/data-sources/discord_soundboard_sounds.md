@@ -5,7 +5,7 @@ Lists soundboard sounds in a guild.
 ## Example Usage
 
 ```hcl-terraform
-data discord_soundboard_sounds all {
+data "discord_soundboard_sounds" "all" {
   server_id = var.server_id
 }
 ```

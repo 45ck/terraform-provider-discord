@@ -8,7 +8,7 @@ the bulk endpoint to make ordering deterministic.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_channel_order order {
+resource "discord_channel_order" "order" {
   server_id = var.server_id
   reason    = "IaC ordering"
 

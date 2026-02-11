@@ -8,7 +8,7 @@ Note: this is a legacy per-type channel resource. Prefer `discord_channel` for f
 ## Example Usage
 
 ```hcl-terraform
-resource discord_voice_channel general {
+resource "discord_voice_channel" "general" {
   name = "General"
   server_id = var.server_id
   position = 0

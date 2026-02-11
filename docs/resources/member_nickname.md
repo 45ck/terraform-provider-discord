@@ -5,7 +5,7 @@ Manages a member nickname.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_member_nickname nick {
+resource "discord_member_nickname" "nick" {
   server_id = var.server_id
   user_id   = "123456789012345678"
   nick      = "New Nick"

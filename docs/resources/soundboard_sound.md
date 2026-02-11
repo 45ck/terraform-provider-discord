@@ -7,7 +7,7 @@ Note: the sound asset is create-only (`sound_file_path` is `ForceNew`).
 ## Example Usage
 
 ```hcl-terraform
-resource discord_soundboard_sound airhorn {
+resource "discord_soundboard_sound" "airhorn" {
   server_id        = var.server_id
   name             = "airhorn"
   volume           = 1.0

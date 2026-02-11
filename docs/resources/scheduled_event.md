@@ -5,7 +5,7 @@ Manages a guild scheduled event.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_scheduled_event weekly {
+resource "discord_scheduled_event" "weekly" {
   server_id            = var.server_id
   name                 = "Weekly Hangout"
   entity_type          = 2

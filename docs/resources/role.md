@@ -1,19 +1,23 @@
 # Discord Role Resource
 
-A resource to create a role
+A resource to create/manage a guild role.
 
 ## Example Usage
 
 ```hcl-terraform
-resource discord_role moderator {
-    server_id = var.server_id
-    name = "Moderator"
-    # Prefer permissions_bits64 for future-proof permissions.
-    permissions_bits64 = data.discord_permission.moderator.allow_bits64
-    color = data.discord_color.blue.dec
-    hoist = true
-    mentionable = true
-    position = 5
+resource "discord_role" "moderator" {
+  server_id = var.server_id
+  name      = "Moderator"
+
+  # Prefer permissions_bits64 for future-proof permissions.
+  permissions_bits64 = data.discord_permission.moderator.allow_bits64
+
+  color       = data.discord_color.blue.dec
+  hoist       = true
+  mentionable = true
+  position    = 5
+
+  reason = "Managed by Terraform"
 }
 ```
 
@@ -27,6 +31,7 @@ resource discord_role moderator {
 * `hoist` (Optional) Whether the role should be hoisted (default false)
 * `mentionable` (Optional) Whether the role should be mentionable (default false)
 * `position` (Optional) The position of the role. This is reverse indexed (@everyone is 0)
+* `reason` (Optional) Audit log reason (not read back)
 
 ## Attribute Reference
 

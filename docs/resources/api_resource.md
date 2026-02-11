@@ -9,7 +9,7 @@ Supports `{id}` placeholder in paths.
 ## Example Usage
 
 ```hcl-terraform
-resource discord_api_resource guild {
+resource "discord_api_resource" "guild" {
   # We just want to manage an existing guild as a singleton.
   # create_method=SKIP means the provider will not call the API on create; it will
   # simply use id_override as the resource ID and start managing it.
