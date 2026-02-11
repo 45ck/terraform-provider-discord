@@ -8,11 +8,13 @@ import (
 
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/planmod"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -71,6 +73,9 @@ func (r *channelPermissionsResource) Schema(_ context.Context, _ resource.Schema
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"overwrite": schema.SetNestedAttribute{
 				Required: true,
@@ -79,9 +84,15 @@ func (r *channelPermissionsResource) Schema(_ context.Context, _ resource.Schema
 						"type": schema.StringAttribute{
 							Required:    true,
 							Description: "role or user",
+							Validators: []validator.String{
+								validate.OneOf("ROLE", "USER"),
+							},
 						},
 						"overwrite_id": schema.StringAttribute{
 							Required: true,
+							Validators: []validator.String{
+								validate.Snowflake(),
+							},
 						},
 						"allow": schema.Int64Attribute{
 							Optional: true,

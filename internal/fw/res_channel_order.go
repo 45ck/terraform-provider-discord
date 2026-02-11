@@ -6,11 +6,13 @@ import (
 
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/planmod"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -63,14 +65,27 @@ func (r *channelOrderResource) Schema(_ context.Context, _ resource.SchemaReques
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"channel": schema.ListNestedAttribute{
 				Required: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"channel_id": schema.StringAttribute{Required: true},
-						"position":   schema.Int64Attribute{Required: true},
-						"parent_id":  schema.StringAttribute{Optional: true},
+						"channel_id": schema.StringAttribute{
+							Required: true,
+							Validators: []validator.String{
+								validate.Snowflake(),
+							},
+						},
+						"position": schema.Int64Attribute{Required: true},
+						"parent_id": schema.StringAttribute{
+							Optional: true,
+							Validators: []validator.String{
+								validate.Snowflake(),
+							},
+						},
 						"lock_permissions": schema.BoolAttribute{
 							Optional: true,
 						},

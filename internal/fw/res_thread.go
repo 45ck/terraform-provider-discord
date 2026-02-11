@@ -83,6 +83,9 @@ func (r *threadResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					stringplanmodifier.RequiresReplace(),
 				},
 				Description: "Parent channel ID (text/news/forum/media).",
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"message_id": schema.StringAttribute{
 				Optional: true,
@@ -90,6 +93,9 @@ func (r *threadResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					stringplanmodifier.RequiresReplace(),
 				},
 				Description: "If set, starts a thread from an existing message.",
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Optional:    true,

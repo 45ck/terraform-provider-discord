@@ -69,6 +69,9 @@ func (r *channelPermissionResource) Schema(_ context.Context, _ resource.SchemaR
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Required: true,
@@ -84,6 +87,9 @@ func (r *channelPermissionResource) Schema(_ context.Context, _ resource.SchemaR
 				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					validate.Snowflake(),
 				},
 			},
 			"allow": schema.Int64Attribute{

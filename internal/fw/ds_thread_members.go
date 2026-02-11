@@ -7,8 +7,10 @@ import (
 	"strconv"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -49,12 +51,20 @@ func (d *threadMembersDataSource) Metadata(_ context.Context, req datasource.Met
 func (d *threadMembersDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":        schema.StringAttribute{Computed: true},
-			"thread_id": schema.StringAttribute{Required: true},
-			"limit":     schema.Int64Attribute{Optional: true},
+			"id": schema.StringAttribute{Computed: true},
+			"thread_id": schema.StringAttribute{
+				Required: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
+			"limit": schema.Int64Attribute{Optional: true},
 			"after": schema.StringAttribute{
 				Optional:    true,
 				Description: "Snowflake user ID; return thread members after this user.",
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"with_member": schema.BoolAttribute{
 				Optional:    true,

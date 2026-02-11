@@ -4,8 +4,10 @@ import (
 	"context"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -30,8 +32,13 @@ func (d *systemChannelDataSource) Metadata(_ context.Context, req datasource.Met
 func (d *systemChannelDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":                schema.StringAttribute{Computed: true},
-			"server_id":         schema.StringAttribute{Required: true},
+			"id": schema.StringAttribute{Computed: true},
+			"server_id": schema.StringAttribute{
+				Required: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
 			"system_channel_id": schema.StringAttribute{Computed: true},
 		},
 	}

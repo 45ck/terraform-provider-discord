@@ -48,6 +48,9 @@ func (r *onboardingResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"payload_json": schema.StringAttribute{
 				Required:    true,

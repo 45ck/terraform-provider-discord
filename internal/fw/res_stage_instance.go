@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/planmod"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -12,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -44,6 +47,8 @@ type stageInstanceModel struct {
 	ScheduledEventID      types.String `tfsdk:"scheduled_event_id"`
 
 	ServerID types.String `tfsdk:"server_id"`
+
+	Reason types.String `tfsdk:"reason"`
 }
 
 func (r *stageInstanceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -58,6 +63,9 @@ func (r *stageInstanceResource) Schema(_ context.Context, _ resource.SchemaReque
 				Required: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					validate.Snowflake(),
 				},
 				Description: "Stage channel ID. Stage instances are keyed by channel_id in the Discord API.",
 			},
@@ -79,9 +87,20 @@ func (r *stageInstanceResource) Schema(_ context.Context, _ resource.SchemaReque
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"server_id": schema.StringAttribute{
 				Computed: true,
+			},
+			"reason": schema.StringAttribute{
+				Optional:  true,
+				Sensitive: true,
+				PlanModifiers: []planmodifier.String{
+					planmod.IgnoreChangesString(),
+				},
+				Description: "Optional audit log reason (X-Audit-Log-Reason). This value is not readable.",
 			},
 		},
 	}
@@ -116,7 +135,7 @@ func (r *stageInstanceResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	var out restStageInstance
-	if err := r.c.DoJSON(ctx, "POST", "/stage-instances", nil, body, &out); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "POST", "/stage-instances", nil, body, &out, plan.Reason.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Discord API error", err.Error())
 		return
 	}
@@ -190,7 +209,7 @@ func (r *stageInstanceResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	if len(body) > 0 {
-		if err := r.c.DoJSON(ctx, "PATCH", fmt.Sprintf("/stage-instances/%s", prior.ChannelID.ValueString()), nil, body, nil); err != nil {
+		if err := r.c.DoJSONWithReason(ctx, "PATCH", fmt.Sprintf("/stage-instances/%s", prior.ChannelID.ValueString()), nil, body, nil, plan.Reason.ValueString()); err != nil {
 			resp.Diagnostics.AddError("Discord API error", err.Error())
 			return
 		}
@@ -213,7 +232,7 @@ func (r *stageInstanceResource) Delete(ctx context.Context, req resource.DeleteR
 		channelID = state.ID.ValueString()
 	}
 
-	if err := r.c.DoJSON(ctx, "DELETE", fmt.Sprintf("/stage-instances/%s", channelID), nil, nil, nil); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "DELETE", fmt.Sprintf("/stage-instances/%s", channelID), nil, nil, nil, state.Reason.ValueString()); err != nil {
 		if discord.IsDiscordHTTPStatus(err, 404) {
 			resp.State.RemoveResource(ctx)
 			return

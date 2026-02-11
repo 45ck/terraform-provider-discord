@@ -44,6 +44,9 @@ func (r *guildSettingsResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"server_id": schema.StringAttribute{
 				Required: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"payload_json": schema.StringAttribute{
 				Required: true,

@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -40,9 +42,14 @@ func (d *channelDataSource) Metadata(_ context.Context, req datasource.MetadataR
 func (d *channelDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":        schema.StringAttribute{Computed: true},
-			"server_id": schema.StringAttribute{Required: true},
-			"name":      schema.StringAttribute{Required: true},
+			"id": schema.StringAttribute{Computed: true},
+			"server_id": schema.StringAttribute{
+				Required: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
+			"name": schema.StringAttribute{Required: true},
 			"type": schema.StringAttribute{
 				Optional:    true,
 				Description: "Optional channel type filter (text, voice, category, news, stage, forum, media).",

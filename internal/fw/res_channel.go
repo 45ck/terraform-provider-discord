@@ -6,11 +6,13 @@ import (
 
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/fwutil"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -110,6 +112,9 @@ func (r *channelResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"type": schema.StringAttribute{
 				Required: true,
@@ -122,6 +127,9 @@ func (r *channelResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"position": schema.Int64Attribute{Optional: true},
 			"parent_id": schema.StringAttribute{
 				Optional: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"topic": schema.StringAttribute{Optional: true},
 			"nsfw":  schema.BoolAttribute{Optional: true},

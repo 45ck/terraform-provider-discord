@@ -7,11 +7,13 @@ import (
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/fwutil"
 	"github.com/aequasi/discord-terraform/internal/fw/planmod"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -56,6 +58,9 @@ func (r *threadMemberResource) Schema(_ context.Context, _ resource.SchemaReques
 					stringplanmodifier.RequiresReplace(),
 				},
 				Description: "Thread channel ID.",
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"user_id": schema.StringAttribute{
 				Required: true,
@@ -63,6 +68,9 @@ func (r *threadMemberResource) Schema(_ context.Context, _ resource.SchemaReques
 					stringplanmodifier.RequiresReplace(),
 				},
 				Description: "User ID, or @me for the bot.",
+				Validators: []validator.String{
+					validate.SnowflakeOrAtMe(),
+				},
 			},
 			"reason": schema.StringAttribute{
 				Optional:  true,

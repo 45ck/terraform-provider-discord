@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -51,12 +53,23 @@ func (d *roleDataSource) Metadata(_ context.Context, req datasource.MetadataRequ
 func (d *roleDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":        schema.StringAttribute{Computed: true},
-			"server_id": schema.StringAttribute{Required: true},
-			"role_id":   schema.StringAttribute{Optional: true, Description: "Either role_id or name must be set."},
-			"name":      schema.StringAttribute{Optional: true, Description: "Either role_id or name must be set."},
-			"position":  schema.Int64Attribute{Computed: true},
-			"color":     schema.Int64Attribute{Computed: true},
+			"id": schema.StringAttribute{Computed: true},
+			"server_id": schema.StringAttribute{
+				Required: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
+			"role_id": schema.StringAttribute{
+				Optional:    true,
+				Description: "Either role_id or name must be set.",
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
+			"name":     schema.StringAttribute{Optional: true, Description: "Either role_id or name must be set."},
+			"position": schema.Int64Attribute{Computed: true},
+			"color":    schema.Int64Attribute{Computed: true},
 			"permissions": schema.Int64Attribute{
 				Computed:    true,
 				Description: "Role permission bits (platform-sized integer; can overflow on 32-bit). Prefer permissions_bits64.",

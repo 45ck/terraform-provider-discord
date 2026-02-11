@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -64,6 +66,9 @@ func (r *welcomeScreenResource) Schema(_ context.Context, _ resource.SchemaReque
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"enabled": schema.BoolAttribute{
 				Optional: true,
@@ -75,10 +80,20 @@ func (r *welcomeScreenResource) Schema(_ context.Context, _ resource.SchemaReque
 				Optional: true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"channel_id":  schema.StringAttribute{Required: true},
+						"channel_id": schema.StringAttribute{
+							Required: true,
+							Validators: []validator.String{
+								validate.Snowflake(),
+							},
+						},
 						"description": schema.StringAttribute{Required: true},
-						"emoji_id":    schema.StringAttribute{Optional: true},
-						"emoji_name":  schema.StringAttribute{Optional: true},
+						"emoji_id": schema.StringAttribute{
+							Optional: true,
+							Validators: []validator.String{
+								validate.Snowflake(),
+							},
+						},
+						"emoji_name": schema.StringAttribute{Optional: true},
 					},
 				},
 			},

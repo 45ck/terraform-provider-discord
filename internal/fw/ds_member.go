@@ -4,8 +4,10 @@ import (
 	"context"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -53,10 +55,21 @@ func (d *memberDataSource) Metadata(_ context.Context, req datasource.MetadataRe
 func (d *memberDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":        schema.StringAttribute{Computed: true},
-			"server_id": schema.StringAttribute{Required: true},
-			"user_id":   schema.StringAttribute{Optional: true, Description: "Prefer user_id. Username-based lookup is not supported."},
-			"username":  schema.StringAttribute{Optional: true, Description: "Not supported for bot tokens; use user_id."},
+			"id": schema.StringAttribute{Computed: true},
+			"server_id": schema.StringAttribute{
+				Required: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
+			"user_id": schema.StringAttribute{
+				Optional:    true,
+				Description: "Prefer user_id. Username-based lookup is not supported.",
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
+			"username": schema.StringAttribute{Optional: true, Description: "Not supported for bot tokens; use user_id."},
 			"discriminator": schema.StringAttribute{
 				Optional:    true,
 				Description: "Not supported for bot tokens; use user_id.",

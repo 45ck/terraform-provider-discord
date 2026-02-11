@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/aequasi/discord-terraform/discord"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -40,8 +42,13 @@ func (d *serverDataSource) Metadata(_ context.Context, req datasource.MetadataRe
 func (d *serverDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id":                            schema.StringAttribute{Computed: true},
-			"server_id":                     schema.StringAttribute{Optional: true},
+			"id": schema.StringAttribute{Computed: true},
+			"server_id": schema.StringAttribute{
+				Optional: true,
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
+			},
 			"name":                          schema.StringAttribute{Optional: true, Description: "Lookup by name is not supported for bot tokens; use server_id."},
 			"region":                        schema.StringAttribute{Computed: true},
 			"default_message_notifications": schema.Int64Attribute{Computed: true},

@@ -7,12 +7,14 @@ import (
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/fwutil"
 	"github.com/aequasi/discord-terraform/internal/fw/planmod"
+	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -77,6 +79,9 @@ func (r *scheduledEventResource) Schema(_ context.Context, _ resource.SchemaRequ
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Required: true,
@@ -103,6 +108,9 @@ func (r *scheduledEventResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"channel_id": schema.StringAttribute{
 				Optional:    true,
 				Description: "Required for stage/voice events",
+				Validators: []validator.String{
+					validate.Snowflake(),
+				},
 			},
 			"location": schema.StringAttribute{
 				Optional:    true,
