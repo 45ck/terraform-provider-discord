@@ -5,7 +5,7 @@ HOSTNAME?=registry.terraform.io
 
 # If you publish under a different namespace, override this when invoking make:
 # `make install NAMESPACE=YourOrg`
-NAMESPACE?=Chaotic-Logic
+NAMESPACE?=45ck
 
 NAME?=discord
 BINARY?=terraform-provider-${NAME}

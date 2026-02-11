@@ -2,7 +2,7 @@
 
 This is a fork of [aequasi/terraform-provider-discord](https://github.com/aequasi/terraform-provider-discord). We ran into some problems with this provider and decided to fix them with this opinionated version.
 
-https://registry.terraform.io/providers/Chaotic-Logic/discord/latest
+https://registry.terraform.io/providers/45ck/discord/latest
 
 Note: this fork serves the provider over Terraform plugin protocol v6, which requires Terraform CLI 1.0+.
 
@@ -23,6 +23,16 @@ This project is not affiliated with Discord.
 The Go module path for this repo is `github.com/45ck/terraform-provider-discord`.
 
 This does not affect Terraform provider installation (which uses the provider source address in your Terraform configuration).
+
+## Provider Source Address
+
+The Terraform Registry source address for this provider is `45ck/discord`.
+
+If you are migrating from another fork (for example `Chaotic-Logic/discord`), you can update existing state with:
+
+```sh
+terraform state replace-provider registry.terraform.io/Chaotic-Logic/discord registry.terraform.io/45ck/discord
+```
 
 ## License
 

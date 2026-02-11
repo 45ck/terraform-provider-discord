@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     discord = {
-      source  = "Chaotic-Logic/discord"
+      source  = "45ck/discord"
       version = ">= 0.0.0"
     }
   }
@@ -26,4 +26,5 @@ resource "discord_guild_settings" "this" {
 
   reason = "Terraform: set baseline guild settings"
 }
+
 

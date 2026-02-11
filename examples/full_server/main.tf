@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     discord = {
-      source  = "Chaotic-Logic/discord"
+      source  = "45ck/discord"
       version = ">= 0.0.0"
     }
   }
@@ -87,3 +87,4 @@ resource "discord_welcome_screen" "main" {
     emoji_name   = "📜"
   }
 }
+

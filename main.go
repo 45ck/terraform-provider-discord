@@ -14,8 +14,9 @@ func main() {
 
 	discord.SetBuildVersion(version)
 
-	// Address can be any stable string; it is used for Terraform CLI dev overrides and debugging.
-	const address = "registry.terraform.io/Chaotic-Logic/discord"
+	// Address should match the Terraform Registry source address users configure in required_providers.
+	// It is also used for Terraform CLI dev overrides and debugging.
+	const address = "registry.terraform.io/45ck/discord"
 	if err := providerserver.Serve(ctx, fw.New(version), providerserver.ServeOpts{Address: address}); err != nil {
 		log.Fatalf("failed to serve provider: %v", err)
 	}

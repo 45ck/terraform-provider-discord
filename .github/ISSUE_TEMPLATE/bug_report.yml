@@ -20,7 +20,7 @@ body:
     id: provider_version
     attributes:
       label: Provider version
-      placeholder: "Chaotic-Logic/discord vX.Y.Z"
+      placeholder: "45ck/discord vX.Y.Z"
     validations:
       required: true
 
@@ -56,4 +56,3 @@ body:
       render: text
     validations:
       required: true
-
