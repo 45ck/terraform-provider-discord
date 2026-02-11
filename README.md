@@ -11,6 +11,7 @@ Note: this fork serves the provider over Terraform plugin protocol v6, which req
 See:
 
 * `examples/full_server` (create roles/channels, set permissions, pin a rules message)
+* `examples/admin_no_clickops` (manage server basics, threads, webhooks, optional stickers/soundboard)
 * `examples/guild_settings` (escape hatch for guild/server settings via `discord_guild_settings`)
 * `examples/api_resource_widget` (generic JSON REST escape hatch via `discord_api_resource`)
 

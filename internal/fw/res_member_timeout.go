@@ -63,6 +63,9 @@ func (r *memberTimeoutResource) Schema(_ context.Context, _ resource.SchemaReque
 			"until": schema.StringAttribute{
 				Required:    true,
 				Description: "RFC3339 timestamp for communication_disabled_until. Use an empty string to clear.",
+				Validators: []validator.String{
+					validate.RFC3339Timestamp(),
+				},
 			},
 			"reason": schema.StringAttribute{
 				Optional:  true,

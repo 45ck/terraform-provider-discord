@@ -153,8 +153,13 @@ func (r *threadResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					"title":       schema.StringAttribute{Optional: true},
 					"description": schema.StringAttribute{Optional: true},
 					"url":         schema.StringAttribute{Optional: true},
-					"timestamp":   schema.StringAttribute{Optional: true},
-					"color":       schema.Int64Attribute{Optional: true},
+					"timestamp": schema.StringAttribute{
+						Optional: true,
+						Validators: []validator.String{
+							validate.RFC3339Timestamp(),
+						},
+					},
+					"color": schema.Int64Attribute{Optional: true},
 					"footer": schema.SingleNestedAttribute{
 						Optional: true,
 						Attributes: map[string]schema.Attribute{

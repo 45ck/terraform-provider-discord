@@ -3,11 +3,14 @@ package fw
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/fwutil"
 	"github.com/aequasi/discord-terraform/internal/fw/planmod"
 	"github.com/aequasi/discord-terraform/internal/fw/validate"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -92,10 +95,16 @@ func (r *scheduledEventResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"scheduled_start_time": schema.StringAttribute{
 				Required:    true,
 				Description: "RFC3339 timestamp",
+				Validators: []validator.String{
+					validate.RFC3339Timestamp(),
+				},
 			},
 			"scheduled_end_time": schema.StringAttribute{
 				Optional:    true,
 				Description: "RFC3339 timestamp (required for external events)",
+				Validators: []validator.String{
+					validate.RFC3339Timestamp(),
+				},
 			},
 			"privacy_level": schema.Int64Attribute{
 				Optional: true,
@@ -149,6 +158,81 @@ func (r *scheduledEventResource) Configure(ctx context.Context, req resource.Con
 		return
 	}
 	r.c = c.Rest
+}
+
+func (r *scheduledEventResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var cfg scheduledEventModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if cfg.EntityType.IsNull() || cfg.EntityType.IsUnknown() {
+		return
+	}
+
+	entityType := cfg.EntityType.ValueInt64()
+
+	channelID := strings.TrimSpace(cfg.ChannelID.ValueString())
+	location := strings.TrimSpace(cfg.Location.ValueString())
+	end := strings.TrimSpace(cfg.ScheduledEndTime.ValueString())
+
+	switch entityType {
+	case 1, 2:
+		// Stage/voice events require a channel_id.
+		if cfg.ChannelID.IsNull() || cfg.ChannelID.IsUnknown() || channelID == "" {
+			resp.Diagnostics.Append(diag.NewAttributeErrorDiagnostic(
+				path.Root("channel_id"),
+				"Invalid configuration",
+				"channel_id is required when entity_type is 1 (stage) or 2 (voice)",
+			))
+		}
+	case 3:
+		// External events require location and scheduled_end_time, and should not set channel_id.
+		if cfg.Location.IsNull() || cfg.Location.IsUnknown() || location == "" {
+			resp.Diagnostics.Append(diag.NewAttributeErrorDiagnostic(
+				path.Root("location"),
+				"Invalid configuration",
+				"location is required when entity_type is 3 (external)",
+			))
+		}
+		if cfg.ScheduledEndTime.IsNull() || cfg.ScheduledEndTime.IsUnknown() || end == "" {
+			resp.Diagnostics.Append(diag.NewAttributeErrorDiagnostic(
+				path.Root("scheduled_end_time"),
+				"Invalid configuration",
+				"scheduled_end_time is required when entity_type is 3 (external)",
+			))
+		}
+		if !cfg.ChannelID.IsNull() && channelID != "" {
+			resp.Diagnostics.Append(diag.NewAttributeErrorDiagnostic(
+				path.Root("channel_id"),
+				"Invalid configuration",
+				"channel_id must be unset/empty when entity_type is 3 (external)",
+			))
+		}
+	default:
+		resp.Diagnostics.Append(diag.NewAttributeErrorDiagnostic(
+			path.Root("entity_type"),
+			"Invalid configuration",
+			"entity_type must be 1 (stage), 2 (voice), or 3 (external)",
+		))
+	}
+
+	// If both timestamps are known and set, enforce end >= start (when end provided).
+	if !cfg.ScheduledStartTime.IsNull() && !cfg.ScheduledStartTime.IsUnknown() {
+		startRaw := strings.TrimSpace(cfg.ScheduledStartTime.ValueString())
+		if startRaw != "" && end != "" && !cfg.ScheduledEndTime.IsUnknown() {
+			startT, serr := time.Parse(time.RFC3339, startRaw)
+			endT, eerr := time.Parse(time.RFC3339, end)
+			if serr == nil && eerr == nil && endT.Before(startT) {
+				resp.Diagnostics.Append(diag.NewAttributeErrorDiagnostic(
+					path.Root("scheduled_end_time"),
+					"Invalid configuration",
+					"scheduled_end_time must be on/after scheduled_start_time",
+				))
+			}
+		}
+	}
 }
 
 func (r *scheduledEventResource) payload(plan *scheduledEventModel, includeStatus bool) map[string]any {
