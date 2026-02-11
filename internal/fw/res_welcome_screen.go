@@ -110,6 +110,26 @@ func (r *welcomeScreenResource) Configure(ctx context.Context, req resource.Conf
 	r.c = c.Rest
 }
 
+func (r *welcomeScreenResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var cfg welcomeScreenModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for i, ch := range cfg.Channel {
+		emojiID := ch.EmojiID.ValueString()
+		emojiName := ch.EmojiName.ValueString()
+		if emojiID != "" && emojiName != "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("channel").AtListIndex(i).AtName("emoji_id"),
+				"Invalid configuration",
+				"Only one of emoji_id or emoji_name may be set for a welcome screen channel entry.",
+			)
+		}
+	}
+}
+
 func expandWelcomeChannels(v []welcomeScreenChannelModel) []restWelcomeChannel {
 	out := make([]restWelcomeChannel, 0, len(v))
 	for _, raw := range v {

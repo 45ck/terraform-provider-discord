@@ -118,6 +118,22 @@ func (r *soundboardSoundResource) Configure(ctx context.Context, req resource.Co
 	r.c = c.Rest
 }
 
+func (r *soundboardSoundResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var cfg soundboardSoundResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if cfg.EmojiID.ValueString() != "" && cfg.EmojiName.ValueString() != "" {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("emoji_id"),
+			"Invalid configuration",
+			"Only one of emoji_id or emoji_name may be set.",
+		)
+	}
+}
+
 func (r *soundboardSoundResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan soundboardSoundResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/fwutil"
+	"github.com/aequasi/discord-terraform/internal/fw/planmod"
 	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -43,6 +44,7 @@ type channelResourceModel struct {
 	ServerID types.String `tfsdk:"server_id"`
 	Type     types.String `tfsdk:"type"`
 	Name     types.String `tfsdk:"name"`
+	Reason   types.String `tfsdk:"reason"`
 
 	Position types.Int64  `tfsdk:"position"`
 	ParentID types.String `tfsdk:"parent_id"`
@@ -123,6 +125,14 @@ func (r *channelResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 				},
 			},
 			"name": schema.StringAttribute{Required: true},
+			"reason": schema.StringAttribute{
+				Optional:  true,
+				Sensitive: true,
+				PlanModifiers: []planmodifier.String{
+					planmod.IgnoreChangesString(),
+				},
+				Description: "Optional audit log reason (X-Audit-Log-Reason). This value is not readable.",
+			},
 
 			"position": schema.Int64Attribute{Optional: true},
 			"parent_id": schema.StringAttribute{
@@ -186,6 +196,38 @@ func (r *channelResource) Configure(ctx context.Context, req resource.ConfigureR
 		return
 	}
 	r.c = c.Rest
+}
+
+func (r *channelResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var cfg channelResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	for i, tag := range cfg.AvailableTag {
+		emojiID := tag.EmojiID.ValueString()
+		emojiName := tag.EmojiName.ValueString()
+		if emojiID != "" && emojiName != "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("available_tag").AtListIndex(i).AtName("emoji_id"),
+				"Invalid configuration",
+				"Only one of emoji_id or emoji_name may be set for a forum tag.",
+			)
+		}
+	}
+
+	if cfg.DefaultReactionEmoji != nil {
+		emojiID := cfg.DefaultReactionEmoji.EmojiID.ValueString()
+		emojiName := cfg.DefaultReactionEmoji.EmojiName.ValueString()
+		if emojiID != "" && emojiName != "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("default_reaction_emoji").AtName("emoji_id"),
+				"Invalid configuration",
+				"Only one of emoji_id or emoji_name may be set for default_reaction_emoji.",
+			)
+		}
+	}
 }
 
 func validateChannelType(t string) (uint, error) {
@@ -327,7 +369,7 @@ func (r *channelResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	var out restChannel
-	if err := r.c.DoJSON(ctx, "POST", fmt.Sprintf("/guilds/%s/channels", plan.ServerID.ValueString()), nil, body, &out); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "POST", fmt.Sprintf("/guilds/%s/channels", plan.ServerID.ValueString()), nil, body, &out, plan.Reason.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Discord API error", err.Error())
 		return
 	}
@@ -445,7 +487,7 @@ func (r *channelResource) Update(ctx context.Context, req resource.UpdateRequest
 	}
 
 	var out restChannel
-	if err := r.c.DoJSON(ctx, "PATCH", fmt.Sprintf("/channels/%s", state.ID.ValueString()), nil, body, &out); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "PATCH", fmt.Sprintf("/channels/%s", state.ID.ValueString()), nil, body, &out, plan.Reason.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Discord API error", err.Error())
 		return
 	}
@@ -462,7 +504,7 @@ func (r *channelResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	if err := r.c.DoJSON(ctx, "DELETE", fmt.Sprintf("/channels/%s", state.ID.ValueString()), nil, nil, nil); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "DELETE", fmt.Sprintf("/channels/%s", state.ID.ValueString()), nil, nil, nil, state.Reason.ValueString()); err != nil {
 		if discord.IsDiscordHTTPStatus(err, 404) {
 			resp.State.RemoveResource(ctx)
 			return

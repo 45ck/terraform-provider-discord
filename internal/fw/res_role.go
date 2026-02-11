@@ -8,6 +8,7 @@ import (
 
 	"github.com/aequasi/discord-terraform/discord"
 	"github.com/aequasi/discord-terraform/internal/fw/fwutil"
+	"github.com/aequasi/discord-terraform/internal/fw/planmod"
 	"github.com/aequasi/discord-terraform/internal/fw/validate"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -31,6 +32,7 @@ type roleResourceModel struct {
 
 	ServerID types.String `tfsdk:"server_id"`
 	Name     types.String `tfsdk:"name"`
+	Reason   types.String `tfsdk:"reason"`
 
 	Permissions       types.Int64  `tfsdk:"permissions"`
 	PermissionsBits64 types.String `tfsdk:"permissions_bits64"`
@@ -90,6 +92,14 @@ func (r *roleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				},
 			},
 			"name": schema.StringAttribute{Required: true},
+			"reason": schema.StringAttribute{
+				Optional:  true,
+				Sensitive: true,
+				PlanModifiers: []planmodifier.String{
+					planmod.IgnoreChangesString(),
+				},
+				Description: "Optional audit log reason (X-Audit-Log-Reason). This value is not readable.",
+			},
 
 			"permissions": schema.Int64Attribute{
 				Optional: true,
@@ -148,7 +158,7 @@ func fetchRoleByID(ctx context.Context, c *discord.RestClient, serverID, roleID 
 	return nil, &discord.DiscordHTTPError{Method: "GET", Path: "/guilds/" + serverID + "/roles", StatusCode: 404, Message: "role not found"}
 }
 
-func swapRolePosition(ctx context.Context, c *discord.RestClient, serverID, roleID string, newPos int) error {
+func swapRolePosition(ctx context.Context, c *discord.RestClient, serverID, roleID string, newPos int, reason string) error {
 	var roles []restRoleFull
 	if err := c.DoJSON(ctx, "GET", "/guilds/"+serverID+"/roles", nil, nil, &roles); err != nil {
 		return err
@@ -179,7 +189,7 @@ func swapRolePosition(ctx context.Context, c *discord.RestClient, serverID, role
 		{ID: roleID, Position: newPos},
 	}
 	var out []restRole
-	return c.DoJSON(ctx, "PATCH", "/guilds/"+serverID+"/roles", nil, body, &out)
+	return c.DoJSONWithReason(ctx, "PATCH", "/guilds/"+serverID+"/roles", nil, body, &out, reason)
 }
 
 func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -206,7 +216,7 @@ func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	var role restRoleFull
-	if err := r.c.DoJSON(ctx, "POST", "/guilds/"+serverID+"/roles", nil, create, &role); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "POST", "/guilds/"+serverID+"/roles", nil, create, &role, plan.Reason.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Discord API error", err.Error())
 		return
 	}
@@ -216,7 +226,7 @@ func (r *roleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	plan.PermissionsBits64 = types.StringValue(strings.TrimSpace(role.Permissions))
 
 	if !plan.Position.IsNull() {
-		if err := swapRolePosition(ctx, r.c, serverID, role.ID, int(plan.Position.ValueInt64())); err != nil {
+		if err := swapRolePosition(ctx, r.c, serverID, role.ID, int(plan.Position.ValueInt64()), plan.Reason.ValueString()); err != nil {
 			resp.Diagnostics.AddError("Discord API error", err.Error())
 			return
 		}
@@ -257,7 +267,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	roleID := state.ID.ValueString()
 
 	if fwutil.ChangedInt64(plan.Position, state.Position) && !plan.Position.IsNull() {
-		if err := swapRolePosition(ctx, r.c, serverID, roleID, int(plan.Position.ValueInt64())); err != nil {
+		if err := swapRolePosition(ctx, r.c, serverID, roleID, int(plan.Position.ValueInt64()), plan.Reason.ValueString()); err != nil {
 			resp.Diagnostics.AddError("Discord API error", err.Error())
 			return
 		}
@@ -278,7 +288,7 @@ func (r *roleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	var out restRoleFull
-	if err := r.c.DoJSON(ctx, "PATCH", fmt.Sprintf("/guilds/%s/roles/%s", serverID, roleID), nil, update, &out); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "PATCH", fmt.Sprintf("/guilds/%s/roles/%s", serverID, roleID), nil, update, &out, plan.Reason.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Discord API error", err.Error())
 		return
 	}
@@ -299,7 +309,7 @@ func (r *roleResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	serverID := state.ServerID.ValueString()
 	roleID := state.ID.ValueString()
 
-	if err := r.c.DoJSON(ctx, "DELETE", fmt.Sprintf("/guilds/%s/roles/%s", serverID, roleID), nil, nil, nil); err != nil {
+	if err := r.c.DoJSONWithReason(ctx, "DELETE", fmt.Sprintf("/guilds/%s/roles/%s", serverID, roleID), nil, nil, nil, state.Reason.ValueString()); err != nil {
 		if discord.IsDiscordHTTPStatus(err, 404) {
 			resp.State.RemoveResource(ctx)
 			return
