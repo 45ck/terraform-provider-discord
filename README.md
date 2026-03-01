@@ -1,5 +1,9 @@
 # Discord Terraform Provider
 
+<p align="center">
+  <img src="banner.svg" alt="Terraform Provider for Discord banner" width="100%" />
+</p>
+
 This is a fork of [aequasi/terraform-provider-discord](https://github.com/aequasi/terraform-provider-discord). We ran into some problems with this provider and decided to fix them with this opinionated version.
 
 https://registry.terraform.io/providers/45ck/discord/latest
