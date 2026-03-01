@@ -1,0 +1,24 @@
+{
+  "repo_name": "terraform-provider-discord",
+  "tagline": "Infrastructure as code for Discord",
+  "one_sentence_purpose": "A Terraform provider that lets you manage Discord servers, roles, channels, and permissions as declarative infrastructure code.",
+  "target_users": "DevOps engineers and Discord community administrators who want reproducible, version-controlled server configurations",
+  "keywords": ["terraform", "discord", "infrastructure-as-code", "provider", "community-fork"],
+  "visual_metaphors": ["interlocking puzzle pieces connecting Terraform blocks to Discord channels", "a bridge spanning from HCL code to a Discord server", "server rack nodes linked by chat bubbles"],
+  "avoid": ["no mascots", "no photorealism", "no Discord logo (trademark)", "no Terraform logo (trademark)"],
+  "style_adjectives": ["professional", "infrastructure-grade", "bold", "modular", "clean"],
+  "palette_hint": {
+    "bg_light": "#ffffff",
+    "bg_dark": "#0d1117",
+    "primary": "#7B61FF",
+    "accent": "#5865F2",
+    "ink": "#c9d1d9"
+  },
+  "assets_needed": [
+    {"path": "assets/banner.light.png", "type": "readme_banner", "desc": "Wide banner on white background with abstract infrastructure blocks connected by purple lines, project name in bold"},
+    {"path": "assets/banner.dark.png", "type": "readme_banner", "desc": "Wide banner on dark background with abstract infrastructure blocks connected by purple lines, project name in bold"},
+    {"path": "assets/logo.light.png", "type": "square_logo", "desc": "Square logo on white background with abstract interlocking blocks in purple and indigo"},
+    {"path": "assets/logo.dark.png", "type": "square_logo", "desc": "Square logo on dark background with abstract interlocking blocks in purple and indigo"},
+    {"path": "assets/social-preview.png", "type": "github_social_preview", "desc": "GitHub social preview card with tagline, abstract infrastructure node graph, purple palette"}
+  ]
+}
