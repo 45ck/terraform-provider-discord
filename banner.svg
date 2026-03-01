@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" fill="none">
+  <defs>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5865F2"/>
+      <stop offset="100%" stop-color="#7B42BC"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Decorative: channel list on left -->
+  <g opacity="0.07" transform="translate(60, 90)">
+    <!-- Category -->
+    <text x="0" y="0" font-family="monospace" font-size="12" fill="#5865F2" letter-spacing="1">GENERAL</text>
+    <!-- Text channels -->
+    <text x="8" y="22" font-family="monospace" font-size="14" fill="#8b949e"># welcome</text>
+    <text x="8" y="44" font-family="monospace" font-size="14" fill="#8b949e"># general</text>
+    <text x="8" y="66" font-family="monospace" font-size="14" fill="#8b949e"># announcements</text>
+
+    <!-- Category -->
+    <text x="0" y="100" font-family="monospace" font-size="12" fill="#5865F2" letter-spacing="1">VOICE</text>
+    <text x="8" y="122" font-family="monospace" font-size="14" fill="#8b949e">&#x1f50a; Lounge</text>
+    <text x="8" y="144" font-family="monospace" font-size="14" fill="#8b949e">&#x1f50a; Gaming</text>
+  </g>
+
+  <!-- Decorative: HCL resource on right -->
+  <g opacity="0.07" transform="translate(960, 100)">
+    <text x="0" y="0" font-family="monospace" font-size="13" fill="#7B42BC">resource "discord_role" {</text>
+    <text x="16" y="20" font-family="monospace" font-size="13" fill="#9f67d8">name = "Admin"</text>
+    <text x="16" y="40" font-family="monospace" font-size="13" fill="#9f67d8">color = 0x5865F2</text>
+    <text x="16" y="60" font-family="monospace" font-size="13" fill="#9f67d8">hoist = true</text>
+    <text x="0" y="80" font-family="monospace" font-size="13" fill="#7B42BC">}</text>
+  </g>
+
+  <!-- Decorative: chat bubbles -->
+  <g opacity="0.05">
+    <rect x="200" y="290" width="120" height="30" rx="15" stroke="#5865F2" stroke-width="1.5"/>
+    <rect x="350" y="300" width="90" height="30" rx="15" stroke="#7B42BC" stroke-width="1.5"/>
+    <rect x="470" y="295" width="140" height="30" rx="15" stroke="#5865F2" stroke-width="1.5"/>
+  </g>
+
+  <!-- Decorative: role badges -->
+  <g opacity="0.06" transform="translate(700, 300)">
+    <rect x="0" y="0" width="60" height="22" rx="11" stroke="#5865F2" stroke-width="1.5"/>
+    <rect x="75" y="0" width="50" height="22" rx="11" stroke="#eb459e" stroke-width="1.5"/>
+    <rect x="140" y="0" width="70" height="22" rx="11" stroke="#57f287" stroke-width="1.5"/>
+    <rect x="225" y="0" width="55" height="22" rx="11" stroke="#fee75c" stroke-width="1.5"/>
+  </g>
+
+  <!-- Decorative: infrastructure arrows -->
+  <g opacity="0.04">
+    <line x1="350" y1="80" x2="850" y2="80" stroke="#5865F2" stroke-width="1" stroke-dasharray="8,4"/>
+    <line x1="380" y1="340" x2="820" y2="340" stroke="#7B42BC" stroke-width="1" stroke-dasharray="6,6"/>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="165" text-anchor="middle" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="52" font-weight="bold" fill="#a5b4fc">
+    Terraform Provider for Discord
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="220" text-anchor="middle" font-family="'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="22" fill="#8b949e">
+    Manage Discord servers end-to-end as infrastructure with Terraform
+  </text>
+
+  <!-- Accent line -->
+  <rect x="400" y="248" width="400" height="2" rx="1" fill="url(#accent)" opacity="0.4"/>
+</svg>
